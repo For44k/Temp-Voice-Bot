@@ -1,0 +1,23 @@
+{
+  "lock": "<a:anim_lock_85:1546588409831890995>",
+  "unlock": "<a:anim_unlock_85:1546630301751574568>",
+  "extra": "<a:anim_extra_85_v2:1546595444291801160>",
+  "claim": "<a:anim_claim_85:1546588419558342856>",
+  "hide": "<a:anim_hide_85:1546588424386117692>",
+  "unhide": "<a:anim_hide_85:1546588424386117692>",
+  "reset": "<a:anim_reset_85:1546588425728164000>",
+  "mute": "<a:anim_mute_85_sleek:1546594277373644830>",
+  "unmute": "<a:anim_unmute_85:1546593358326272053>",
+  "deafen": "<a:anim_deafen_85_sleek:1546594284516679680>",
+  "undeafen": "<a:anim_undeafen_85:1546593361618800641>",
+  "reject": "<a:anim_reject_minus_85:1546596311241990215>",
+  "temp_reject": "<a:anim_tempreject_85_sleek:1546594275276365844>",
+  "permit": "<a:anim_permit_plus_85:1546596308846911561>",
+  "fixlag": "<a:anim_fixlag_85:1546593368438739005>",
+  "tmute": "<a:anim_tmute_85_sleek:1546594287167209652>",
+  "tlock": "<a:anim_tlock_85:1546593374361100459>",
+  "whitelist": "<a:anim_wl_plus_85:1546596302933200907>",
+  "blacklist": "<a:anim_bl_minus_85:1546596307504861234>",
+  "limit": "<a:anim_roomlimit_85_v3:1546596313339269141>",
+  "rename": "<a:anim_rename_85_v2:1546595437878710372>"
+}

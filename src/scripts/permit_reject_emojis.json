@@ -1,0 +1,54 @@
+{
+  "#000000": {
+    "permit": "<a:a_permit_black:1546880558943043634>",
+    "reject": "<a:a_reject_black:1546880564127072376>"
+  },
+  "#00ccdf": {
+    "permit": "<a:a_permit_cyan:1546880568338423892>",
+    "reject": "<a:a_reject_cyan:1546880572134002698>"
+  },
+  "#a7a7a7": {
+    "permit": "<a:a_permit_silver:1546880576336822446>",
+    "reject": "<a:a_reject_silver:1546880580430463066>"
+  },
+  "#796bc2": {
+    "permit": "<a:a_permit_purple:1546880584826224681>",
+    "reject": "<a:a_reject_purple:1546880589171269643>"
+  },
+  "#fe90e6": {
+    "permit": "<a:a_permit_pink:1546880593164505158>",
+    "reject": "<a:a_reject_pink:1546880597320925234>"
+  },
+  "#f3ad5e": {
+    "permit": "<a:a_permit_orange:1546880601179562075>",
+    "reject": "<a:a_reject_orange:1546880604858224690>"
+  },
+  "#6fd383": {
+    "permit": "<a:a_permit_green:1546880608553148537>",
+    "reject": "<a:a_reject_green:1546880612193804390>"
+  },
+  "#ff4d6d": {
+    "permit": "<a:a_permit_ruby:1546880616010616883>",
+    "reject": "<a:a_reject_ruby:1546880621249433691>"
+  },
+  "#5865f2": {
+    "permit": "<a:a_permit_indigo:1546880626064629801>",
+    "reject": "<a:a_reject_indigo:1546880630661451798>"
+  },
+  "#ff7a59": {
+    "permit": "<a:a_permit_coral:1546880634822066249>",
+    "reject": "<a:a_reject_coral:1546880638181838992>"
+  },
+  "#246409": {
+    "permit": "<a:a_permit_forest:1546880642237595678>",
+    "reject": "<a:a_reject_forest:1546880648331923598>"
+  },
+  "#8c8f45": {
+    "permit": "<a:a_permit_olive:1546880652715102250>",
+    "reject": "<a:a_reject_olive:1546880656523534478>"
+  },
+  "#ffffff": {
+    "permit": "<a:a_permit_white:1546880660545863760>",
+    "reject": "<a:a_reject_white:1546880665562386452>"
+  }
+}

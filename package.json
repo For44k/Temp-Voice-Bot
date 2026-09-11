@@ -1,0 +1,23 @@
+{
+  "name": "one-tap-voice",
+  "version": "1.0.0",
+  "description": "High performance temporary voice channel management Discord bot",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^1.0.8",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "gif-encoder-2": "^1.0.5",
+    "mongoose": "^8.9.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,16 @@
+[PASS] ALERT_EMOJI
+[PASS] EXTRA_EMOJI
+[PASS] angelheart
+[PASS] lock
+[PASS] unlock
+[PASS] claim
+[PASS] show_hide
+[PASS] show
+[PASS] reset
+[PASS] infinity
+[PASS] name
+[PASS] info
+[PASS] mute
+[FAIL] deafen: Invalid Form Body
+components[0].components[0].emoji.id[COMPONENT_INVALID_EMOJI]: Invalid emoji
+[PASS] reject

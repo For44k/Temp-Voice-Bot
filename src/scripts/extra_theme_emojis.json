@@ -1,0 +1,104 @@
+{
+  "#000000": {
+    "mute": "<a:a_mute_black:1547342948247666728>",
+    "deafen": "<a:a_deafen_black:1547342953738010730>",
+    "tempreject": "<a:a_tempreject_black:1547342959031226379>",
+    "randomreject": "<a:a_randomreject_black:1547342962990784673>"
+  },
+  "#00ccdf": {
+    "mute": "<a:a_mute_cyan:1547342966954135652>",
+    "deafen": "<a:a_deafen_cyan:1547342971727511552>",
+    "tempreject": "<a:a_tempreject_cyan:1547342975825219586>",
+    "randomreject": "<a:a_randomreject_cyan:1547342980367654972>"
+  },
+  "#a7a7a7": {
+    "mute": "<a:a_mute_silver:1547342984381603961>",
+    "deafen": "<a:a_deafen_silver:1547342988814979110>",
+    "tempreject": "<a:a_tempreject_silver:1547342993315332229>",
+    "randomreject": "<a:a_randomreject_silver:1547342998113878076>"
+  },
+  "#796bc2": {
+    "mute": "<a:a_mute_purple:1547343002358382763>",
+    "deafen": "<a:a_deafen_purple:1547343006498160730>",
+    "tempreject": "<a:a_tempreject_purple:1547343010432295053>",
+    "randomreject": "<a:a_randomreject_purple:1547343014538776656>"
+  },
+  "#fe90e6": {
+    "mute": "<a:a_mute_pink:1547343018812641351>",
+    "deafen": "<a:a_deafen_pink:1547343022931578961>",
+    "tempreject": "<a:a_tempreject_pink:1547343026794537066>",
+    "randomreject": "<a:a_randomreject_pink:1547343031261335562>"
+  },
+  "#f3ad5e": {
+    "mute": "<a:a_mute_orange:1547343035669553223>",
+    "deafen": "<a:a_deafen_orange:1547343039498948731>",
+    "tempreject": "<a:a_tempreject_orange:1547343044016349274>",
+    "randomreject": "<a:a_randomreject_orange:1547343047975768094>"
+  },
+  "#6fd383": {
+    "mute": "<a:a_mute_green:1547343052346097736>",
+    "deafen": "<a:a_deafen_green:1547343056775417926>",
+    "tempreject": "<a:a_tempreject_green:1547343061279969411>",
+    "randomreject": "<a:a_randomreject_green:1547343065507827862>"
+  },
+  "#ff4d6d": {
+    "mute": "<a:a_mute_ruby:1547343069651800068>",
+    "deafen": "<a:a_deafen_ruby:1547343073938378852>",
+    "tempreject": "<a:a_tempreject_ruby:1547343078107643964>",
+    "randomreject": "<a:a_randomreject_ruby:1547343082154893472>"
+  },
+  "#5865f2": {
+    "mute": "<a:a_mute_indigo:1547343086089281607>",
+    "deafen": "<a:a_deafen_indigo:1547343090082390126>",
+    "tempreject": "<a:a_tempreject_indigo:1547343094494666802>",
+    "randomreject": "<a:a_randomreject_indigo:1547343098873380874>"
+  },
+  "#ff7a59": {
+    "mute": "<a:a_mute_coral:1547343103122481213>",
+    "deafen": "<a:a_deafen_coral:1547343107962568774>",
+    "tempreject": "<a:a_tempreject_coral:1547343112685228133>",
+    "randomreject": "<a:a_randomreject_coral:1547343116678336582>"
+  },
+  "#246409": {
+    "mute": "<a:a_mute_forest:1547343121153654816>",
+    "deafen": "<a:a_deafen_forest:1547343125197099100>",
+    "tempreject": "<a:a_tempreject_forest:1547343129764696064>",
+    "randomreject": "<a:a_randomreject_forest:1547343134264918139>"
+  },
+  "#8c8f45": {
+    "mute": "<a:a_mute_olive:1547343138878783568>",
+    "deafen": "<a:a_deafen_olive:1547343143094067291>",
+    "tempreject": "<a:a_tempreject_olive:1547343147158212689>",
+    "randomreject": "<a:a_randomreject_olive:1547343150681559112>"
+  },
+  "#ffffff": {
+    "mute": "<a:a_mute_white:1547343154951229555>",
+    "deafen": "<a:a_deafen_white:1547343158818373774>",
+    "tempreject": "<a:a_tempreject_white:1547343166859116575>",
+    "randomreject": "<a:a_randomreject_white:1547343170956697622>"
+  },
+  "#ff0004": {
+    "mute": "<a:a_mute_scarlet:1547343175964692630>",
+    "deafen": "<a:a_deafen_scarlet:1547343181161435298>",
+    "tempreject": "<a:a_tempreject_scarlet:1547343185435562105>",
+    "randomreject": "<a:a_randomreject_scarlet:1547343189508235315>"
+  },
+  "#a6af27": {
+    "mute": "<a:a_mute_chartreuse:1547343193786290226>",
+    "deafen": "<a:a_deafen_chartreuse:1547343198056218624>",
+    "tempreject": "<a:a_tempreject_chartreuse:1547343202527477930>",
+    "randomreject": "<a:a_randomreject_chartreuse:1547343207447273572>"
+  },
+  "#1f5351": {
+    "mute": "<a:a_mute_teal:1547343212782424196>",
+    "deafen": "<a:a_deafen_teal:1547343217421320222>",
+    "tempreject": "<a:a_tempreject_teal:1547343221498318988>",
+    "randomreject": "<a:a_randomreject_teal:1547343225600348170>"
+  },
+  "#65c75e": {
+    "mute": "<a:a_mute_lime:1547343229404581978>",
+    "deafen": "<a:a_deafen_lime:1547343235599564841>",
+    "tempreject": "<a:a_tempreject_lime:1547343239584030761>",
+    "randomreject": "<a:a_randomreject_lime:1547343243878858904>"
+  }
+}
