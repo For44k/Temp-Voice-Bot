@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,18,24&height=180&section=header&text=OneTap%20Voice&fontSize=42&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=Next-Generation%20Discord%20Temporary%20Voice%20Management&descFontSize=16&descAlignY=58" width="100%" />
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,18,24&height=180&section=header&text=One%20Tap%20Voice&fontSize=42&fontColor=ffffff&animation=fadeIn&fontAlignY=38&desc=One%20Tap%20Discord%20Temporary%20Voice%20Management&descFontSize=16&descAlignY=58" width="100%" />
 
   <p align="center">
     <a href="https://discord.js.org"><img src="https://img.shields.io/badge/Discord.js-v14.18-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord.js" /></a>
