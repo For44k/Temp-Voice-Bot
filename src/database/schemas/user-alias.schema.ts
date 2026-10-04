@@ -7,8 +7,8 @@ export interface IUserAlias {
 }
 
 const UserAliasSchema = new Schema<IUserAlias>({
-  userId: { type: String, required: true, index: true },
-  guildId: { type: String, required: true, index: true },
+  userId: { type: String, required: true },
+  guildId: { type: String, required: true },
   aliases: { type: Map, of: String, default: () => new Map() }
 });
 

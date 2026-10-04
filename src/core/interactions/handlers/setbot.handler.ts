@@ -11,30 +11,31 @@ import {
   PermissionFlagsBits,
   Routes,
   MessageFlags,
-  REST
+  REST,
+  GuildMember
 } from "discord.js";
 import { Usages } from "../../../shared/embeds/usages";
-import { TaskWorkerQueue } from "../../workers/task-worker.queue";
 import { safeFetchImage } from "../../../shared/utils/safe-fetch";
 
 export class SetbotInteractionHandler {
-  private static getRest(interaction: ButtonInteraction | ModalSubmitInteraction, target: string): REST {
-    if (target === "worker") {
-      if (TaskWorkerQueue.rest) {
-        return TaskWorkerQueue.rest;
-      }
+  private static getRest(interaction: ButtonInteraction | ModalSubmitInteraction, _target?: string): REST {
+    const { BotGateway } = require("../../gateway/bot.gateway");
+    if (BotGateway.client?.rest) {
+      return BotGateway.client.rest;
     }
     return interaction.client.rest;
   }
 
   public static async handleButton(interaction: ButtonInteraction): Promise<void> {
-    const member = interaction.member as any;
-    const guildId = interaction.guildId!;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
 
     if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__You need Administrator permissions to use this :__**")),
-        flags: MessageFlags.Ephemeral as any
+        ...(await Usages.impossible(guildId, "You need Administrator permissions to use this")),
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -304,13 +305,15 @@ export class SetbotInteractionHandler {
   }
 
   public static async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
-    const member = interaction.member as any;
-    const guildId = interaction.guildId!;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
 
     if (!member.permissions.has(PermissionFlagsBits.Administrator)) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__You need Administrator permissions to use this :__**")),
-        flags: MessageFlags.Ephemeral as any
+        ...(await Usages.impossible(guildId, "You need Administrator permissions to use this")),
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -319,16 +322,29 @@ export class SetbotInteractionHandler {
     const modalType = parts[1];
     const target = parts[2] || "main";
     const rest = this.getRest(interaction, target);
-    const targetLabel = target === "worker" ? "Worker Bot" : "Main Bot";
+
+    const { BotGateway } = await import("../../gateway/bot.gateway");
+    const { ENV } = await import("../../config/env");
+    const botId = BotGateway.client?.user?.id || interaction.client.user?.id || ENV.CLIENT_ID;
+    const botMention = `<@${botId}>`;
+
+    const isMainInGuild = BotGateway.client?.guilds.cache.has(guildId) || interaction.client.guilds.cache.has(guildId);
+    if (!isMainInGuild) {
+      await interaction.reply({
+        ...(await Usages.impossible(guildId, `${botMention} is not in this server. Please add ${botMention} first`)),
+        flags: MessageFlags.Ephemeral
+      });
+      return;
+    }
 
     if (modalType === "avatar_modal") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral as any });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         let buffer: Buffer | null = null;
         let contentType = "image/png";
 
         try {
-          const files = (interaction.fields as any).getUploadedFiles?.("avatar_file");
+          const files = interaction.fields.getUploadedFiles?.("avatar_file");
           if (files && files.size > 0) {
             const file = files.first();
             if (file?.url) {
@@ -347,7 +363,7 @@ export class SetbotInteractionHandler {
 
           if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
             await interaction.editReply({
-              ...(await Usages.impossible(guildId, "**__Please upload an image file or provide a valid image URL :__**"))
+              ...(await Usages.impossible(guildId, "Please upload an image file or provide a valid image URL"))
             });
             return;
           }
@@ -366,25 +382,26 @@ export class SetbotInteractionHandler {
 
         const embed = await Usages.executedAction(
           guildId,
-          `${targetLabel} Avatar`,
-          `${targetLabel} server avatar has been successfully updated.`
+          "Profile Avatar",
+          `${botMention} server avatar has been successfully updated.`
         );
         await interaction.editReply({ ...embed });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to update ${targetLabel} avatar: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const embed = await Usages.impossible(guildId, `Failed to update ${botMention} avatar: ${errorMessage}`);
         await interaction.editReply({ ...embed });
       }
       return;
     }
 
     if (modalType === "banner_modal") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral as any });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         let buffer: Buffer | null = null;
         let contentType = "image/png";
 
         try {
-          const files = (interaction.fields as any).getUploadedFiles?.("banner_file");
+          const files = interaction.fields.getUploadedFiles?.("banner_file");
           if (files && files.size > 0) {
             const file = files.first();
             if (file?.url) {
@@ -403,7 +420,7 @@ export class SetbotInteractionHandler {
 
           if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
             await interaction.editReply({
-              ...(await Usages.impossible(guildId, "**__Please upload an image file or provide a valid image URL :__**"))
+              ...(await Usages.impossible(guildId, "Please upload an image file or provide a valid image URL"))
             });
             return;
           }
@@ -422,19 +439,20 @@ export class SetbotInteractionHandler {
 
         const embed = await Usages.executedAction(
           guildId,
-          `${targetLabel} Banner`,
-          `${targetLabel} server banner has been successfully updated.`
+          "Profile Banner",
+          `${botMention} server banner has been successfully updated.`
         );
         await interaction.editReply({ ...embed });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to update ${targetLabel} banner: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const embed = await Usages.impossible(guildId, `Failed to update ${botMention} banner: ${errorMessage}`);
         await interaction.editReply({ ...embed });
       }
       return;
     }
 
     if (modalType === "bio_modal") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral as any });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         const bio = interaction.fields.getTextInputValue("bot_bio").trim();
         await rest.patch(
@@ -444,31 +462,32 @@ export class SetbotInteractionHandler {
 
         const embed = await Usages.executedAction(
           guildId,
-          `${targetLabel} Bio`,
-          `${targetLabel} server bio updated to:\n>>> ${bio}`
+          "Profile Bio",
+          `${botMention} server bio updated to:\n>>> ${bio}`
         );
         await interaction.editReply({ ...embed });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to update ${targetLabel} bio: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const embed = await Usages.impossible(guildId, `Failed to update ${botMention} bio: ${errorMessage}`);
         await interaction.editReply({ ...embed });
       }
       return;
     }
 
     if (modalType === "nameplate_modal") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral as any });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         let fontRaw = "default";
         let effectRaw = "solid";
 
         try {
-          const selFonts = (interaction.fields as any).getStringSelectValues?.("font_select");
-          if (selFonts && selFonts.length > 0) fontRaw = selFonts[0];
+          const selFonts = interaction.fields.getStringSelectValues?.("font_select");
+          if (selFonts && selFonts.length > 0 && selFonts[0]) fontRaw = selFonts[0];
         } catch { }
 
         try {
-          const selEffects = (interaction.fields as any).getStringSelectValues?.("effect_select");
-          if (selEffects && selEffects.length > 0) effectRaw = selEffects[0];
+          const selEffects = interaction.fields.getStringSelectValues?.("effect_select");
+          if (selEffects && selEffects.length > 0 && selEffects[0]) effectRaw = selEffects[0];
         } catch { }
 
         if (fontRaw === "default") {
@@ -537,7 +556,7 @@ export class SetbotInteractionHandler {
 
         if (isNaN(fontId) || isNaN(effectId)) {
           await interaction.editReply({
-            ...(await Usages.impossible(guildId, "**__Invalid font or effect selected. Please choose a valid style :__**"))
+            ...(await Usages.impossible(guildId, "Invalid font or effect selected. Please choose a valid style"))
           });
           return;
         }
@@ -550,7 +569,7 @@ export class SetbotInteractionHandler {
         const color1 = hexToDec(color1Hex);
         if (isNaN(color1)) {
           await interaction.editReply({
-            ...(await Usages.impossible(guildId, "**__Invalid first hex color format (e.g. #FF69B4) :__**"))
+            ...(await Usages.impossible(guildId, "Invalid first hex color format (e.g. #FF69B4)"))
           });
           return;
         }
@@ -559,14 +578,14 @@ export class SetbotInteractionHandler {
         if (effectId === 2) {
           if (!color2Hex) {
             await interaction.editReply({
-              ...(await Usages.impossible(guildId, "**__Gradient effect requires second color. Please fill second color :__**"))
+              ...(await Usages.impossible(guildId, "Gradient effect requires second color. Please provide second color"))
             });
             return;
           }
           const color2 = hexToDec(color2Hex);
           if (isNaN(color2)) {
             await interaction.editReply({
-              ...(await Usages.impossible(guildId, "**__Invalid second hex color format :__**"))
+              ...(await Usages.impossible(guildId, "Invalid second hex color format"))
             });
             return;
           }
@@ -586,19 +605,20 @@ export class SetbotInteractionHandler {
 
         const embed = await Usages.executedAction(
           guildId,
-          `${targetLabel} Nameplate`,
-          `${targetLabel} nameplate styling applied successfully!\n- **Font ID:** \`${fontId}\`\n- **Effect ID:** \`${effectId}\`\n- **Colors:** \`${colors.map((c) => `#${c.toString(16).toUpperCase()}`).join(", ")}\``
+          "Profile Nameplate",
+          `${botMention} nameplate styling applied successfully:\n- **Font ID:** \`${fontId}\`\n- **Effect ID:** \`${effectId}\`\n- **Colors:** \`${colors.map((c) => `#${c.toString(16).toUpperCase()}`).join(", ")}\``
         );
         await interaction.editReply({ ...embed });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to update nameplate: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const embed = await Usages.impossible(guildId, `Failed to update ${botMention} nameplate: ${errorMessage}`);
         await interaction.editReply({ ...embed });
       }
       return;
     }
 
     if (modalType === "panelimage_modal") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral as any });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         const { GuildConfigModel } = await import("../../../database/schemas/guild-config.schema");
         const { GuildMemoryStore } = await import("../../../modules/voice/cache/guild.store");
@@ -607,7 +627,7 @@ export class SetbotInteractionHandler {
         let buffer: Buffer | null = null;
 
         try {
-          const files = (interaction.fields as any).getUploadedFiles?.("panelimage_file");
+          const files = interaction.fields.getUploadedFiles?.("panelimage_file");
           if (files && files.size > 0) {
             const file = files.first();
             if (file?.url) {
@@ -629,7 +649,7 @@ export class SetbotInteractionHandler {
 
           if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
             await interaction.editReply({
-              ...(await Usages.impossible(guildId, "**__Please upload an image file or provide a valid image URL :__**"))
+              ...(await Usages.impossible(guildId, "Please upload an image file or provide a valid image URL"))
             });
             return;
           }
@@ -641,7 +661,7 @@ export class SetbotInteractionHandler {
 
         if (!finalUrl) {
           await interaction.editReply({
-            ...(await Usages.impossible(guildId, "**__Failed to process panel image :__**"))
+            ...(await Usages.impossible(guildId, "Failed to process panel image"))
           });
           return;
         }
@@ -663,21 +683,22 @@ export class SetbotInteractionHandler {
           "Voice panel image has been successfully updated."
         );
         await interaction.editReply({ ...embed });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to update panel image: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const embed = await Usages.impossible(guildId, `Failed to update panel image: ${errorMessage}`);
         await interaction.editReply({ ...embed });
       }
       return;
     }
 
     if (modalType === "reset_modal") {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral as any });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       try {
         const resetTarget = interaction.fields.getTextInputValue("reset_target").trim().toLowerCase();
 
         if (!resetTarget) {
           await interaction.editReply({
-            ...(await Usages.impossible(guildId, "**__No item was entered to reset :__**"))
+            ...(await Usages.impossible(guildId, "No item was entered to reset"))
           });
           return;
         }
@@ -687,7 +708,7 @@ export class SetbotInteractionHandler {
             Routes.guildMember(guildId, "@me"),
             { body: { avatar: null } }
           );
-          const embed = await Usages.executedAction(guildId, `Reset ${targetLabel} Avatar`, `**__${targetLabel} server avatar has been reset to default.__**`);
+          const embed = await Usages.executedAction(guildId, "Reset Avatar", `${botMention} server avatar has been reset to default.`);
           await interaction.editReply({ ...embed });
           return;
         }
@@ -697,7 +718,7 @@ export class SetbotInteractionHandler {
             Routes.guildMember(guildId, "@me"),
             { body: { banner: null } }
           );
-          const embed = await Usages.executedAction(guildId, `Reset ${targetLabel} Banner`, `**__${targetLabel} server banner has been reset to default.__**`);
+          const embed = await Usages.executedAction(guildId, "Reset Banner", `${botMention} server banner has been reset to default.`);
           await interaction.editReply({ ...embed });
           return;
         }
@@ -707,7 +728,7 @@ export class SetbotInteractionHandler {
             Routes.guildMember(guildId, "@me"),
             { body: { bio: "" } }
           );
-          const embed = await Usages.executedAction(guildId, `Reset ${targetLabel} Bio`, `**__${targetLabel} server bio has been cleared.__**`);
+          const embed = await Usages.executedAction(guildId, "Reset Bio", `${botMention} server bio has been cleared.`);
           await interaction.editReply({ ...embed });
           return;
         }
@@ -723,7 +744,7 @@ export class SetbotInteractionHandler {
               }
             }
           );
-          const embed = await Usages.executedAction(guildId, `Reset ${targetLabel} Nameplate`, `**__${targetLabel} nameplate styling has been reset to default.__**`);
+          const embed = await Usages.executedAction(guildId, "Reset Nameplate", `${botMention} nameplate styling has been reset to default.`);
           await interaction.editReply({ ...embed });
           return;
         }
@@ -734,18 +755,18 @@ export class SetbotInteractionHandler {
           await GuildConfigModel.updateOne({ guildId }, { $unset: { panelImageUrl: 1 } }).exec();
           const cfg = await GuildMemoryStore.resolve(guildId);
           if (cfg) delete cfg.panelImageUrl;
-          GuildMemoryStore["store"].delete(guildId);
 
-          const embed = await Usages.executedAction(guildId, "Reset Panel Image", "**__Custom voice panel image has been removed.__**");
+          const embed = await Usages.executedAction(guildId, "Reset Panel Image", "Custom voice panel image has been removed.");
           await interaction.editReply({ ...embed });
           return;
         }
 
         await interaction.editReply({
-          ...(await Usages.impossible(guildId, "**__Invalid option. Choose: avatar, banner, bio, nameplate, or panel :__**"))
+          ...(await Usages.impossible(guildId, "Invalid option. Choose: avatar, banner, bio, nameplate, or panel"))
         });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to reset: ${err.message}`);
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const embed = await Usages.impossible(guildId, `Failed to reset: ${errorMessage}`);
         await interaction.editReply({ ...embed });
       }
     }

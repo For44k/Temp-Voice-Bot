@@ -8,7 +8,7 @@ export interface IGlobalBlacklist {
 }
 
 const GlobalBlacklistSchema = new Schema<IGlobalBlacklist>({
-  targetId: { type: String, required: true, unique: true, index: true },
+  targetId: { type: String, required: true, unique: true },
   type: { type: String, required: true, enum: ["user", "server"] },
   reason: { type: String },
   addedAt: { type: Date, default: Date.now }

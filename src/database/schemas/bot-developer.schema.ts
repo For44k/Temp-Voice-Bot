@@ -7,7 +7,7 @@ export interface IBotDeveloper {
 }
 
 const BotDeveloperSchema = new Schema<IBotDeveloper>({
-  userId: { type: String, required: true, unique: true, index: true },
+  userId: { type: String, required: true, unique: true },
   addedBy: { type: String, required: true },
   addedAt: { type: Date, default: Date.now }
 });

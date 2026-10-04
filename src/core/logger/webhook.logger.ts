@@ -26,13 +26,15 @@ export class WebhookLogger {
         .setColor(color)
         .setTimestamp();
       await webhook.send({ embeds: [embed] });
-    } catch {}
+    } catch (error: unknown) {
+      console.error("Failed to deliver webhook log", error);
+    }
   }
 
   public static async logError(errorTitle: string, error: unknown): Promise<void> {
     const message = error instanceof Error ? error.stack || error.message : String(error);
     await this.log(
-      `🚨 Bot Error: ${errorTitle}`,
+      `Bot Error: ${errorTitle}`,
       `\`\`\`\n${message.slice(0, 4000)}\n\`\`\``,
       0xff0000
     );
@@ -51,20 +53,35 @@ export class WebhookLogger {
     if (!webhook) return null;
     try {
       const attachment = new AttachmentBuilder(buffer, { name: filename });
-      const msg = await webhook.send({ files: [attachment] });
-      const attachmentList = msg.attachments;
-      const url = Array.isArray(attachmentList)
-        ? (attachmentList[0] as any)?.url ?? null
-        : (attachmentList as any).first?.()?.url ?? (attachmentList as any)[0]?.url ?? null;
-      return url;
-    } catch {
+      const messageResult = await webhook.send({ files: [attachment] });
+      if (!messageResult || typeof messageResult !== "object") {
+        return null;
+      }
+      if ("attachments" in messageResult) {
+        const rawAttachments = (messageResult as { attachments: unknown }).attachments;
+        if (Array.isArray(rawAttachments) && rawAttachments.length > 0) {
+          const firstAttachment = rawAttachments[0];
+          if (firstAttachment && typeof firstAttachment === "object" && "url" in firstAttachment && typeof (firstAttachment as { url: unknown }).url === "string") {
+            return (firstAttachment as { url: string }).url;
+          }
+        }
+        if (rawAttachments && typeof rawAttachments === "object" && "values" in rawAttachments && typeof (rawAttachments as { values: () => IterableIterator<unknown> }).values === "function") {
+          const firstAttachment = (rawAttachments as { values: () => IterableIterator<unknown> }).values().next().value;
+          if (firstAttachment && typeof firstAttachment === "object" && "url" in firstAttachment && typeof (firstAttachment as { url: unknown }).url === "string") {
+            return (firstAttachment as { url: string }).url;
+          }
+        }
+      }
+      return null;
+    } catch (error: unknown) {
+      console.error("Failed to upload image via webhook", error);
       return null;
     }
   }
 
   public static async logGuildLeave(guildName: string, guildId: string, memberCount: number): Promise<void> {
     await this.log(
-      `📤 Left Server: ${guildName}`,
+      `Left Server: ${guildName}`,
       `- **Server ID:** \`${guildId}\`\n- **Members at departure:** \`${memberCount}\``,
       0xffaa00
     );

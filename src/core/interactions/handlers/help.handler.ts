@@ -9,7 +9,7 @@ export class HelpInteractionHandler {
     const action = parts[1];
     if (action === "home") {
       const payload = await HelpBuilder.buildHelpPayload(interaction.guildId, "home", 0);
-      await interaction.update(payload).catch(() => { });
+      await interaction.update(payload).catch(() => {});
       return;
     }
 
@@ -17,11 +17,11 @@ export class HelpInteractionHandler {
       const categoryId = parts[2];
       const pageIndex = parseInt(parts[3], 10);
       const payload = await HelpBuilder.buildHelpPayload(interaction.guildId, categoryId, pageIndex);
-      await interaction.update(payload).catch(() => { });
+      await interaction.update(payload).catch(() => {});
       return;
     }
 
-    await interaction.deferUpdate().catch(() => { });
+    await interaction.deferUpdate().catch(() => {});
   }
 
   public static async handleSelectMenu(interaction: StringSelectMenuInteraction): Promise<void> {
@@ -29,7 +29,6 @@ export class HelpInteractionHandler {
 
     const selectedCategory = interaction.values[0];
     const payload = await HelpBuilder.buildHelpPayload(interaction.guildId, selectedCategory, 0);
-    await interaction.update(payload).catch(() => { });
+    await interaction.update(payload).catch(() => {});
   }
 }
-

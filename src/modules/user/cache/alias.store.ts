@@ -1,10 +1,20 @@
 import { UserAliasModel } from "../../../database/schemas/user-alias.schema";
+import { FastLogger } from "../../../core/logger/logger";
 
 export class AliasStore {
   private static cache: Map<string, Map<string, string>> = new Map();
+  private static readonly MAX_ENTRIES = 5000;
 
   private static makeKey(guildId: string, userId: string): string {
     return `${guildId}:${userId}`;
+  }
+
+  private static setBounded(key: string, value: Map<string, string>): void {
+    if (this.cache.size >= this.MAX_ENTRIES && !this.cache.has(key)) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
   }
 
   public static async getAliases(guildId: string, userId: string): Promise<Map<string, string>> {
@@ -22,9 +32,11 @@ export class AliasStore {
           }
         }
       }
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("AliasStore.getAliases failed", { guildId, userId, err });
+    }
 
-    this.cache.set(key, map);
+    this.setBounded(key, map);
     return map;
   }
 
@@ -44,18 +56,22 @@ export class AliasStore {
 
     map.set(lowerAlias, lowerTarget);
     const key = this.makeKey(guildId, userId);
-    this.cache.set(key, map);
+    this.setBounded(key, map);
 
     const plainObject: Record<string, string> = {};
     for (const [k, v] of Array.from(map.entries())) {
       plainObject[k] = v;
     }
 
-    UserAliasModel.updateOne(
-      { guildId, userId },
-      { aliases: plainObject },
-      { upsert: true }
-    ).exec().catch(() => {});
+    try {
+      await UserAliasModel.updateOne(
+        { guildId, userId },
+        { aliases: plainObject },
+        { upsert: true }
+      ).exec();
+    } catch (err: unknown) {
+      FastLogger.error("AliasStore.addAlias failed", { guildId, userId, alias, err });
+    }
 
     return { success: true };
   }
@@ -68,18 +84,22 @@ export class AliasStore {
 
     map.delete(lowerAlias);
     const key = this.makeKey(guildId, userId);
-    this.cache.set(key, map);
+    this.setBounded(key, map);
 
     const plainObject: Record<string, string> = {};
     for (const [k, v] of Array.from(map.entries())) {
       plainObject[k] = v;
     }
 
-    UserAliasModel.updateOne(
-      { guildId, userId },
-      { aliases: plainObject },
-      { upsert: true }
-    ).exec().catch(() => {});
+    try {
+      await UserAliasModel.updateOne(
+        { guildId, userId },
+        { aliases: plainObject },
+        { upsert: true }
+      ).exec();
+    } catch (err: unknown) {
+      FastLogger.error("AliasStore.removeAlias failed", { guildId, userId, alias, err });
+    }
 
     return true;
   }

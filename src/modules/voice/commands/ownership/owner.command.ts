@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoicePermissionsManager } from "../../services/voice-permission.service";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { Usages } from "../../../../shared/embeds/usages";
 import { extractTargetMembers } from "../../../../shared/utils/member-parser";
@@ -30,11 +30,6 @@ export const ownerCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
-      await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
-      return;
-    }
-
     const targets = await extractTargetMembers(message, args, 1);
     if (targets.length === 0) {
       await message.reply({ ...(await Usages.impossible(guildId, "**__User not found :__**")), allowedMentions: { parse: [] } });
@@ -42,32 +37,52 @@ export const ownerCommand: ICommand = {
     }
 
     const targetMember = targets[0];
-    if (targetMember.user.bot) {
-      await message.reply({
-        ...(await Usages.impossible(guildId, "**__You cannot transfer ownership to a bot :__**")),
-        allowedMentions: { parse: [] }
-      });
-      return;
-    }
+    const result = await VoicePermissionsManager.executeTransferOwner(channel, member, targetMember);
 
-    if (targetMember.id === member.id) {
-      const embed = await Usages.alreadyAction(guildId, "You are already the channel owner");
-      await message.reply({ ...embed, allowedMentions: { parse: [] } });
-      return;
+    switch (result.status) {
+      case "not_in_voice": {
+        await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "not_owner": {
+        await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "target_is_self": {
+        const embed = await Usages.alreadyAction(guildId, "You are already the channel owner");
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
+      case "target_is_bot": {
+        await message.reply({
+          ...(await Usages.impossible(guildId, "**__You cannot transfer ownership to a bot :__**")),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "target_not_in_channel": {
+        await message.reply({
+          ...(await Usages.impossible(guildId, "**__Target user is not in the voice channel :__**")),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "failed": {
+        await message.reply({
+          ...(await Usages.impossible(guildId, "**__Failed to transfer ownership on Discord :__**")),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "transferred": {
+        const embed = await Usages.executedAction(
+          guildId,
+          "Transfer",
+          `**__Ownership Transferred :__** Transferred channel ownership to <@${result.newOwner.id}>`
+        );
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
     }
-
-    for (const oldCoOwnerId of session.coOwners) {
-      await channel.permissionOverwrites.delete(oldCoOwnerId).catch(() => {});
-    }
-    session.coOwners.clear();
-
-    VoiceMemoryStore.reassignOwner(channel.id, targetMember.id);
-    VoiceMemoryStore.sync(channel.id);
-    const embed = await Usages.executedAction(
-      guildId,
-      "Transfer",
-      `**__Ownership Transferred :__** Transferred channel ownership to <@${targetMember.id}>`
-    );
-    await message.reply({ ...embed, allowedMentions: { parse: [] } });
   }
 };

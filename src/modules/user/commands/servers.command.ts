@@ -1,4 +1,11 @@
-import { Message, ContainerBuilder, SeparatorBuilder, TextDisplayBuilder, MessageFlags, resolveColor } from "discord.js";
+import {
+  Message,
+  ContainerBuilder,
+  SeparatorBuilder,
+  TextDisplayBuilder,
+  MessageFlags,
+  resolveColor
+} from "discord.js";
 import { ICommand } from "../../../shared/types/command.types";
 import { BotDeveloperStore } from "../cache/bot-developer.store";
 import { ThemeManager } from "../../../core/config/theme";
@@ -14,7 +21,7 @@ export const serversCommand: ICommand = {
     const totalMembers = guilds.reduce((acc, g) => acc + (g.memberCount || 0), 0);
 
     const color = await ThemeManager.getColor(message.guildId);
-    const resolvedColor = (color ? resolveColor(color) : 0x2b2d31);
+    const resolvedColor = color ? resolveColor(color) : 0x2b2d31;
 
     const container = new ContainerBuilder()
       .setAccentColor(resolvedColor)
@@ -53,8 +60,9 @@ export const serversCommand: ICommand = {
     }
 
     await message.reply({
-      flags: MessageFlags.IsComponentsV2 as any,
-      components: [container] as any
+      flags: MessageFlags.IsComponentsV2,
+      components: [container],
+      allowedMentions: { parse: [] }
     });
   }
 };

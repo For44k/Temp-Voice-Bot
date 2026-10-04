@@ -9,8 +9,8 @@ export interface IUserPreferences {
 }
 
 const UserPreferencesSchema = new Schema<IUserPreferences>({
-  userId: { type: String, required: true, index: true },
-  guildId: { type: String, required: true, index: true },
+  userId: { type: String, required: true },
+  guildId: { type: String, required: true },
   blacklist: { type: [String], default: [] },
   trusted: { type: [String], default: [] },
   whitelist: { type: [String], default: [] }

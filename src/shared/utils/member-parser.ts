@@ -22,7 +22,9 @@ export async function extractTargetRoles(message: Message, args: string[], maxLi
   const matchedIds: string[] = rawText.match(idPattern) || [];
 
   if (guild.roles.cache.size <= 1) {
-    await guild.roles.fetch().catch(() => {});
+    try {
+      await guild.roles.fetch();
+    } catch {}
   }
 
   for (const id of matchedIds) {
@@ -30,7 +32,11 @@ export async function extractTargetRoles(message: Message, args: string[], maxLi
     if (!rolesMap.has(id)) {
       let role = guild.roles.cache.get(id);
       if (!role) {
-        role = (await guild.roles.fetch(id).catch(() => null)) ?? undefined;
+        try {
+          role = (await guild.roles.fetch(id)) ?? undefined;
+        } catch {
+          role = undefined;
+        }
       }
       if (role && role.id !== guild.roles.everyone.id) {
         rolesMap.set(id, role);
@@ -39,30 +45,32 @@ export async function extractTargetRoles(message: Message, args: string[], maxLi
   }
 
   if (rolesMap.size < maxLimit && args.length > 0) {
-    const rawSearch = args.join(" ").replace(/^@/, "").trim().toLowerCase();
+    const rawSearch = args.join(" ").replace(/^@+/, "").trim().toLowerCase();
     const normalize = (str: string) => str.replace(/[\s\-_]+/g, "").toLowerCase();
     const normSearch = normalize(rawSearch);
 
-    let exactRole = guild.roles.cache.find(
-      (r) => r.id !== guild.roles.everyone.id && (r.name.toLowerCase() === rawSearch || normalize(r.name) === normSearch)
-    );
-    if (exactRole && !rolesMap.has(exactRole.id)) {
-      rolesMap.set(exactRole.id, exactRole);
-    }
-
-    if (rolesMap.size === 0) {
-      const startsRole = guild.roles.cache.find(
-        (r) => r.id !== guild.roles.everyone.id && (r.name.toLowerCase().startsWith(rawSearch) || normalize(r.name).startsWith(normSearch))
+    if (rawSearch.length > 0) {
+      let exactRole = guild.roles.cache.find(
+        (r) => r.id !== guild.roles.everyone.id && (r.name.toLowerCase() === rawSearch || normalize(r.name) === normSearch)
       );
-      if (startsRole && !rolesMap.has(startsRole.id)) {
-        rolesMap.set(startsRole.id, startsRole);
+      if (exactRole && !rolesMap.has(exactRole.id)) {
+        rolesMap.set(exactRole.id, exactRole);
+      }
+
+      if (rolesMap.size === 0 && rawSearch.length >= 2) {
+        const startsRole = guild.roles.cache.find(
+          (r) => r.id !== guild.roles.everyone.id && (r.name.toLowerCase().startsWith(rawSearch) || normalize(r.name).startsWith(normSearch))
+        );
+        if (startsRole && !rolesMap.has(startsRole.id)) {
+          rolesMap.set(startsRole.id, startsRole);
+        }
       }
     }
 
     if (rolesMap.size === 0) {
       for (const arg of args) {
         if (rolesMap.size >= maxLimit) break;
-        const cleanArg = arg.replace(/^@/, "").trim().toLowerCase();
+        const cleanArg = arg.replace(/^@+/, "").trim().toLowerCase();
         if (!cleanArg || matchedIds.includes(cleanArg) || /^\d{17,20}$/.test(cleanArg)) continue;
         const normArg = normalize(cleanArg);
 
@@ -70,9 +78,8 @@ export async function extractTargetRoles(message: Message, args: string[], maxLi
           (r) =>
             r.id !== guild.roles.everyone.id &&
             (r.name.toLowerCase() === cleanArg ||
-             r.name.toLowerCase().startsWith(cleanArg) ||
              normalize(r.name) === normArg ||
-             normalize(r.name).startsWith(normArg))
+             (cleanArg.length >= 2 && (r.name.toLowerCase().startsWith(cleanArg) || normalize(r.name).startsWith(normArg))))
         );
         if (role && !rolesMap.has(role.id)) {
           rolesMap.set(role.id, role);
@@ -111,7 +118,11 @@ export async function extractTargetMembers(message: Message, args: string[], max
 
       let member = guild.members.cache.get(id);
       if (!member) {
-        member = (await guild.members.fetch(id).catch(() => null)) ?? undefined;
+        try {
+          member = (await guild.members.fetch(id)) ?? undefined;
+        } catch {
+          member = undefined;
+        }
       }
       if (member) {
         membersMap.set(id, member);
@@ -123,7 +134,7 @@ export async function extractTargetMembers(message: Message, args: string[], max
     const knownSubs = new Set(["add", "remove", "del", "list", "clear", "@user", "username", "id", "@role", "rolename"]);
     for (const arg of args) {
       if (membersMap.size >= maxLimit) break;
-      const cleanArg = arg.replace(/^@/, "").trim().toLowerCase();
+      const cleanArg = arg.replace(/^@+/, "").trim().toLowerCase();
       if (!cleanArg || knownSubs.has(cleanArg) || matchedIds.includes(cleanArg) || /^\d{17,20}$/.test(cleanArg)) continue;
 
       if (guild.roles.cache.some((r) => r.name.toLowerCase() === cleanArg)) continue;

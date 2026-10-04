@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { Usages } from "../../../../shared/embeds/usages";
 
@@ -23,11 +23,12 @@ export const unclaimCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
+    if (!VoiceAuthService.isOwner(channel.id, member.id)) {
       await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }
 
+    await channel.permissionOverwrites.delete(member.id).catch(() => {});
     VoiceMemoryStore.reassignOwner(channel.id, session.originalOwnerId);
     VoiceMemoryStore.sync(channel.id);
     await channel.permissionOverwrites.edit(session.originalOwnerId, {
@@ -35,7 +36,8 @@ export const unclaimCommand: ICommand = {
       ViewChannel: true,
       SendMessages: true,
       Speak: true,
-      Stream: true
+      Stream: true,
+      MoveMembers: true
     }).catch(() => {});
     const embed = await Usages.executedAction(
       guildId,

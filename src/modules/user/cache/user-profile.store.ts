@@ -1,4 +1,5 @@
 import { UserProfileModel, IUserProfile } from "../../../database/schemas/user-profile.schema";
+import { FastLogger } from "../../../core/logger/logger";
 
 export interface CachedUserProfile {
   channelsCreated: number;
@@ -24,7 +25,9 @@ export class UserProfileStore {
           equippedBannerUrl: r.equippedBannerUrl
         });
       }
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("UserProfileStore.preload failed", err);
+    }
   }
 
   public static getSync(userId: string, guildId: string): CachedUserProfile | undefined {
@@ -51,7 +54,9 @@ export class UserProfileStore {
         this.cache.set(key, item);
         return item;
       }
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("UserProfileStore.get failed", { userId, guildId, err });
+    }
     return null;
   }
 

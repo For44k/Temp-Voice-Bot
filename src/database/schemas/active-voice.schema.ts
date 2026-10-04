@@ -14,7 +14,7 @@ export interface IActiveVoice {
 }
 
 const ActiveVoiceSchema = new Schema<IActiveVoice>({
-  channelId: { type: String, required: true, unique: true, index: true },
+  channelId: { type: String, required: true, unique: true },
   guildId: { type: String, required: true, index: true },
   ownerId: { type: String, required: true, index: true },
   originalOwnerId: { type: String, required: true },

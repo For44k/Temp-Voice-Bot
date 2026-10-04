@@ -9,6 +9,7 @@ import {
 } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
 import { GlobalMusicBotModel } from "../../../../database/schemas/global-music-bot.schema";
+import { GuildMemoryStore } from "../../cache/guild.store";
 import { Usages } from "../../../../shared/embeds/usages";
 import { ThemeManager } from "../../../../core/config/theme";
 
@@ -16,9 +17,10 @@ export const musicCommand: ICommand = {
   name: "music",
   prefixAliases: ["music", "musicbot", "musicbots", "mbot"],
   async executePrefix(message: Message, args: string[]): Promise<void> {
-    const guildId = message.guildId!;
-    const sub = args[0]?.toLowerCase();
+    const guildId = message.guildId;
+    if (!guildId) return;
 
+    const sub = args[0]?.toLowerCase();
     const color = ThemeManager.getColorSync(guildId);
     const accentColor = color ? resolveColor(color) : null;
     const starEmoji = "<a:white_stars:1547180877962944585>";
@@ -32,7 +34,7 @@ export const musicCommand: ICommand = {
         await message.reply({
           ...(await Usages.impossible(
             guildId,
-            "**__You need Manage Server or Administrator permissions to manage music bots :__**"
+            "You need Manage Server or Administrator permissions to manage music bots"
           )),
           allowedMentions: { parse: [] }
         });
@@ -59,8 +61,8 @@ export const musicCommand: ICommand = {
           .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
         await message.reply({
-          flags: MessageFlags.IsComponentsV2 as any,
-          components: [container] as any,
+          flags: MessageFlags.IsComponentsV2,
+          components: [container],
           allowedMentions: { parse: [] }
         });
         return;
@@ -79,14 +81,26 @@ export const musicCommand: ICommand = {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await message.reply({
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [container] as any,
+        flags: MessageFlags.IsComponentsV2,
+        components: [container],
         allowedMentions: { parse: [] }
       });
       return;
     }
 
     if (sub === "add") {
+      const config = GuildMemoryStore.resolve(guildId);
+      if (!config?.twoPanelsEnabled) {
+        await message.reply({
+          ...(await Usages.impossible(
+            guildId,
+            "Two Panels feature is disabled. Please enable Secondary Music & Activities Panel in `.v setup` first."
+          )),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+
       let targetBotId: string | null = null;
       const mention = message.mentions.users.first();
       if (mention) {
@@ -112,7 +126,7 @@ export const musicCommand: ICommand = {
       const targetUser = await message.client.users.fetch(targetBotId).catch(() => null);
       if (!targetUser) {
         await message.reply({
-          ...(await Usages.impossible(guildId, "**__Bot user not found :__** Please check the provided Bot ID or mention.")),
+          ...(await Usages.impossible(guildId, "Bot user not found. Please check the provided Bot ID or mention.")),
           allowedMentions: { parse: [] }
         });
         return;
@@ -120,7 +134,7 @@ export const musicCommand: ICommand = {
 
       if (!targetUser.bot) {
         await message.reply({
-          ...(await Usages.impossible(guildId, "**__Invalid Target :__** The specified user is not a Discord bot account.")),
+          ...(await Usages.impossible(guildId, "Invalid Target: The specified user is not a Discord bot account.")),
           allowedMentions: { parse: [] }
         });
         return;
@@ -148,8 +162,8 @@ export const musicCommand: ICommand = {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await message.reply({
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [container] as any,
+        flags: MessageFlags.IsComponentsV2,
+        components: [container],
         allowedMentions: { parse: [] }
       });
       return;
@@ -179,7 +193,7 @@ export const musicCommand: ICommand = {
       const deleted = await GlobalMusicBotModel.findOneAndDelete({ botId: targetBotId }).exec();
       if (!deleted) {
         await message.reply({
-          ...(await Usages.impossible(guildId, `**__Music bot <@${targetBotId}> is not in the global registry.__**`)),
+          ...(await Usages.impossible(guildId, `Music bot <@${targetBotId}> is not in the global registry.`)),
           allowedMentions: { parse: [] }
         });
         return;
@@ -201,8 +215,8 @@ export const musicCommand: ICommand = {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await message.reply({
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [container] as any,
+        flags: MessageFlags.IsComponentsV2,
+        components: [container],
         allowedMentions: { parse: [] }
       });
       return;

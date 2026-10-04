@@ -4,6 +4,8 @@ import {
   GuildMember,
   MessageFlags
 } from "discord.js";
+import { VoiceAuthService } from "../../../modules/voice/services/voice-auth.service";
+import { VoiceSettingsService } from "../../../modules/voice/services/voice-settings.service";
 import { VoiceLifecycleService } from "../../../modules/voice/services/voice-lifecycle.service";
 import { VoicePermissionsManager } from "../../../modules/voice/services/voice-permission.service";
 import { VoiceMemoryStore } from "../../../modules/voice/cache/voice.store";
@@ -12,9 +14,11 @@ import { ActionLogger } from "../../logger/action.logger";
 
 export class VoiceModalHandler {
   public static async handle(interaction: ModalSubmitInteraction): Promise<void> {
-    const member = interaction.member as GuildMember;
-    const guildId = interaction.guildId!;
-    const channel = member?.voice?.channel as VoiceChannel | null;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
+    const channel = member.voice.channel as VoiceChannel | null;
 
     if (!channel) {
       await interaction.deferUpdate().catch(() => {});
@@ -25,7 +29,7 @@ export class VoiceModalHandler {
     const session = VoiceMemoryStore.get(channel.id);
 
     if (customId === "modal:transfer") {
-      if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
+      if (!VoiceAuthService.isOwner(channel.id, member.id)) {
         await interaction.deferUpdate().catch(() => {});
         return;
       }
@@ -33,30 +37,13 @@ export class VoiceModalHandler {
       const targetMember = await this.extractTargetMember(interaction);
       if (!targetMember) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__User not found :__**")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "User not found")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
-      if (session) {
-        for (const oldCoOwnerId of session.coOwners) {
-          await channel.permissionOverwrites.delete(oldCoOwnerId).catch(() => {});
-        }
-        session.coOwners.clear();
-      }
-
-      await channel.permissionOverwrites.edit(targetMember.id, {
-        Connect: true,
-        Speak: true,
-        Stream: true,
-        ViewChannel: true,
-        MoveMembers: true,
-        SendMessages: true
-      }).catch(() => {});
-
-      VoiceMemoryStore.reassignOwner(channel.id, targetMember.id);
-      VoiceMemoryStore.sync(channel.id);
+      await VoicePermissionsManager.transferOwnership(channel, member.id, targetMember);
 
       ActionLogger.logAction({
         guildId,
@@ -73,13 +60,13 @@ export class VoiceModalHandler {
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await interaction.deferUpdate().catch(() => {});
       return;
     }
@@ -91,7 +78,7 @@ export class VoiceModalHandler {
       if (!Usages.isValidChannelName(sanitized)) {
         await interaction.reply({
           ...(await Usages.invalidInputWarning(guildId)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -100,21 +87,30 @@ export class VoiceModalHandler {
         const embed = await Usages.alreadyAction(guildId, `The channel is already named \`${sanitized}\``);
         await interaction.reply({
           ...embed,
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
-      const rateCheck = VoiceLifecycleService.canRename(channel.id);
+      const rateCheck = VoiceSettingsService.canRename(channel.id);
       if (!rateCheck.allowed) {
         await interaction.reply({
           ...(await Usages.renameCooldown(guildId, rateCheck.waitSeconds || 0)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
-      await channel.setName(sanitized);
+      try {
+        await channel.setName(sanitized);
+      } catch {
+        VoiceSettingsService.rollbackRename(channel.id);
+        await interaction.reply({
+          ...(await Usages.impossible(guildId, "Failed to update channel name on Discord")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+        return;
+      }
 
       ActionLogger.logAction({
         guildId,
@@ -127,11 +123,11 @@ export class VoiceModalHandler {
       const embed = await Usages.executedAction(
         guildId,
         "Rename",
-        `**__Channel Name has been changed to__** **\`${sanitized}\`**`
+        `Voice channel name updated to : \`${sanitized}\``
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -143,8 +139,8 @@ export class VoiceModalHandler {
 
       if (isNaN(amount) || amount < 0 || amount > 99) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__Please provide a valid limit between 0 and 99 :__**")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "Please provide a valid limit between 0 and 99")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -153,7 +149,7 @@ export class VoiceModalHandler {
         const embed = await Usages.alreadyAction(guildId, `The channel limit is already set to \`${amount}\``);
         await interaction.reply({
           ...embed,
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -171,11 +167,11 @@ export class VoiceModalHandler {
       const embed = await Usages.executedAction(
         guildId,
         "Limit",
-        `**__Channel Limit has been changed to__** **\`${amount}\`**`
+        `Voice channel limit updated to : \`${amount}\``
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -184,8 +180,8 @@ export class VoiceModalHandler {
     const targetMember = await this.extractTargetMember(interaction);
     if (!targetMember) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__User not found :__**")),
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+        ...(await Usages.impossible(guildId, "User not found")),
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
       return;
     }
@@ -194,23 +190,23 @@ export class VoiceModalHandler {
       if (customId === "modal:reject" || customId === "modal:temp_reject") {
         await interaction.reply({
           ...(await Usages.selfReject(guildId)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
       if (customId === "modal:permit") {
         await interaction.reply({
-          ...(await Usages.stopDoingThat(guildId, "You Can't Permit yourself")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.stopDoingThat(guildId, "You cannot permit yourself")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
     }
 
-    if (!VoiceLifecycleService.canManageTarget(channel.id, member.id, targetMember.id)) {
+    if (!VoiceAuthService.canManageTarget(channel.id, member.id, targetMember.id, interaction.guild)) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__Cannot manage the owner or fellow trusted managers :__**")),
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+        ...(await Usages.impossible(guildId, "Cannot manage the owner, fellow managers, or server administrators")),
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
       return;
     }
@@ -218,10 +214,10 @@ export class VoiceModalHandler {
     if (customId === "modal:reject") {
       const overwrite = channel.permissionOverwrites.cache.get(targetMember.id);
       if (overwrite && overwrite.deny.has("Connect")) {
-        const embed = await Usages.stopDoingThat(guildId, "You Can't Reject someone he is already Rejected");
+        const embed = await Usages.stopDoingThat(guildId, "You cannot reject someone who is already rejected");
         await interaction.reply({
           ...embed,
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -245,7 +241,7 @@ export class VoiceModalHandler {
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -254,10 +250,10 @@ export class VoiceModalHandler {
     if (customId === "modal:permit") {
       const overwrite = channel.permissionOverwrites.cache.get(targetMember.id);
       if (overwrite && overwrite.allow.has("Connect")) {
-        const embed = await Usages.stopDoingThat(guildId, "You Can't Permit someone he is already Permitted");
+        const embed = await Usages.stopDoingThat(guildId, "You cannot permit someone who is already permitted");
         await interaction.reply({
           ...embed,
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -281,7 +277,7 @@ export class VoiceModalHandler {
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -309,7 +305,7 @@ export class VoiceModalHandler {
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -337,7 +333,7 @@ export class VoiceModalHandler {
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -349,20 +345,22 @@ export class VoiceModalHandler {
 
       if (!ms || ms < 5000 || ms > 86400000) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__Invalid duration. Use format like 30s, 5m, 1h (min 5s, max 24h) :__**")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "Invalid duration. Use format like 30s, 5m, 1h (min 5s, max 24h)")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
       await VoicePermissionsManager.rejectMember(channel, targetMember);
 
-      setTimeout(async () => {
-        const stillChannel = interaction.guild?.channels.cache.get(channel.id) as VoiceChannel | undefined;
-        if (stillChannel) {
+      const timerId = setTimeout(async () => {
+        const stillChannel = interaction.guild?.channels.cache.get(channel.id);
+        if (stillChannel && stillChannel instanceof VoiceChannel) {
           await Promise.resolve(VoicePermissionsManager.resetMember(stillChannel, targetMember)).catch(() => {});
         }
       }, ms);
+
+      VoiceLifecycleService.registerTempTimer(channel.id, timerId);
 
       ActionLogger.logAction({
         guildId,
@@ -380,30 +378,13 @@ export class VoiceModalHandler {
       );
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
     }
   }
 
   private static async extractTargetMember(interaction: ModalSubmitInteraction): Promise<GuildMember | null> {
-    try {
-      const users = (interaction.fields as any).getSelectedUsers?.("target_user_select") || (interaction.fields as any).getSelectedUsers?.("target_user");
-      if (users && users.size > 0) {
-        const user = users.first();
-        const member = await interaction.guild?.members.fetch(user.id).catch(() => null);
-        if (member) return member;
-      }
-    } catch {}
-
-    try {
-      const selectValues = (interaction.fields as any).getStringSelectValues?.("target_user_select") || (interaction.fields as any).getStringSelectValues?.("target_user");
-      if (selectValues && selectValues.length > 0 && selectValues[0]) {
-        const member = await interaction.guild?.members.fetch(selectValues[0]).catch(() => null);
-        if (member) return member;
-      }
-    } catch {}
-
     try {
       const raw = interaction.fields.getTextInputValue("target_user")?.trim();
       if (!raw) return null;
@@ -429,8 +410,8 @@ export class VoiceModalHandler {
     const match = input.match(/^(\d+)\s*(s|sec|seconds?|m|min|minutes?|h|hours?)$/i);
     if (!match) return null;
 
-    const value = parseInt(match[1], 10);
-    const unit = match[2].toLowerCase();
+    const value = parseInt(match[1] ?? "0", 10);
+    const unit = (match[2] ?? "").toLowerCase();
 
     if (unit.startsWith("s")) return value * 1000;
     if (unit.startsWith("m")) return value * 60 * 1000;

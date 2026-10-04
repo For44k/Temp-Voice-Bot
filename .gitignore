@@ -1,3 +1,6 @@
 node_modules
 dist
 .env
+*.log
+voice.json
+*.zip

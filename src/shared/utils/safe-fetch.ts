@@ -97,8 +97,16 @@ export async function safeFetchImage(
         currentUrl,
         {
           timeout: timeoutMs,
-          lookup: (_hostname: string, opts: any, cb: any) => {
-            if (opts && opts.all) {
+          lookup: (
+            _hostname: string,
+            opts: unknown,
+            cb: (
+              err: NodeJS.ErrnoException | null,
+              address: string | Array<{ address: string; family: number }>,
+              family?: number
+            ) => void
+          ) => {
+            if (typeof opts === "object" && opts !== null && "all" in opts && Boolean((opts as { all?: boolean }).all)) {
               cb(null, [{ address: validatedAddress.address, family: validatedAddress.family }]);
             } else {
               cb(null, validatedAddress.address, validatedAddress.family);

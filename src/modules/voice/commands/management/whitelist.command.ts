@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { VoicePermissionsManager } from "../../services/voice-permission.service";
 import { PreferencesStore } from "../../../user/cache/preferences.store";
@@ -20,7 +20,7 @@ export const whitelistCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }

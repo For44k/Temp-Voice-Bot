@@ -14,19 +14,17 @@ import {
 } from "discord.js";
 import { ThemeManager } from "../../core/config/theme";
 import { THEME_PRESETS } from "../../modules/voice/commands/settings/theme.command";
+import { EmojiManager, ACTION_EMOJIS } from "../../core/config/emojies";
 
-export type V2Payload = {
-  flags: number;
-  components: any[];
-  allowedMentions?: MessageMentionOptions;
-};
+import { V2Payload } from "../types/v2.types";
+export { V2Payload };
 
-const getLocalRGB = (color: any): [number, number, number] => {
+const getLocalRGB = (color: string | number | [number, number, number] | null | undefined): [number, number, number] => {
   if (typeof color === "number") {
     return [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff];
   }
   if (Array.isArray(color) && color.length === 3) {
-    return color as [number, number, number];
+    return color;
   }
   if (!color || typeof color !== "string") return [0, 0, 0];
   const cleanHex = color.replace("#", "");
@@ -37,7 +35,7 @@ const getLocalRGB = (color: any): [number, number, number] => {
   ];
 };
 
-const getAccentColorInt = (color: any): number => {
+const getAccentColorInt = (color: string | number | [number, number, number] | null | undefined): number => {
   const [r, g, b] = getLocalRGB(color);
   return (r << 16) + (g << 8) + b;
 };
@@ -71,88 +69,69 @@ export const createMultiContainer = (parts: string[], accentColorHex?: string | 
   if (accentColorHex) {
     builder.setAccentColor(getAccentColorInt(accentColorHex));
   }
-  builder.addSeparatorComponents(new SeparatorBuilder());
 
-  parts.forEach((part) => {
+  parts.forEach((part, index) => {
     builder.addTextDisplayComponents(new TextDisplayBuilder().setContent(part));
-    builder.addSeparatorComponents(new SeparatorBuilder());
+    if (index < parts.length - 1) {
+      builder.addSeparatorComponents(new SeparatorBuilder());
+    }
   });
 
   return builder.toJSON();
 };
 
-export const ACTION_EMOJIS: Record<string, string> = {
-  lock: "<a:anim_lock_cb:1546633975487930435>",
-  unlock: "<a:anim_unlock_cb:1546633978600099910>",
-  hide: "<a:anim_hide_cb:1546633980558835722>",
-  unhide: "<a:anim_unhide_cb:1546639680995459203>",
-  claim: "<a:anim_claim_cb:1546633981829718106>",
-  unclaim: "<a:anim_claim_cb:1546633981829718106>",
-  reject: "<a:anim_reject_cb:1546634011315806218>",
-  "random reject": "<a:anim_reject_cb:1546634011315806218>",
-  "temp reject": "<a:anim_tempreject_cb:1546634008832638986>",
-  "temporary reject": "<a:anim_tempreject_cb:1546634008832638986>",
-  kick: "<a:anim_reject_cb:1546634011315806218>",
-  "random kick": "<a:anim_reject_cb:1546634011315806218>",
-  mute: "<a:anim_mute_cb:1546634004919222355>",
-  unmute: "<a:anim_mute_cb:1546634004919222355>",
-  deafen: "<a:anim_deafen_85_sleek:1546594284516679680>",
-  undeafen: "<a:anim_undeafen_85:1546593361618800641>",
-  permit: "<a:anim_permit_cb:1546636691845152838>",
-  limit: "<a:anim_limit_cb:1546633984975311029>",
-  rename: "<a:anim_rename_cb:1546633989324804128>",
-  name: "<a:anim_rename_cb:1546633989324804128>",
-  "channel name": "<a:anim_rename_cb:1546633989324804128>",
-  "voice name": "<a:anim_rename_cb:1546633989324804128>",
-  status: "<a:anim_extra_cb:1546633992030265507>",
-  "voice status": "<a:anim_extra_cb:1546633992030265507>",
-  reset: "<a:anim_reset_cb:1546633997524799578>",
-  fixlag: "<a:anim_reset_cb:1546633997524799578>",
-  "lag resolved": "<a:anim_reset_cb:1546633997524799578>",
-  tmute: "<a:anim_mute_cb:1546634004919222355>",
-  tunmute: "<a:anim_mute_cb:1546634004919222355>",
-  "text mute": "<a:anim_mute_cb:1546634004919222355>",
-  "text unmute": "<a:anim_mute_cb:1546634004919222355>",
-  tlock: "<a:anim_lock_cb:1546633975487930435>",
-  tunlock: "<a:anim_unlock_cb:1546633978600099910>",
-  "text lock": "<a:anim_lock_cb:1546633975487930435>",
-  "text unlock": "<a:anim_unlock_cb:1546633978600099910>",
-  antiabuse: "<a:anim_antiabuse_cb:1546633994903490570>",
-  "anti abuse": "<a:anim_antiabuse_cb:1546633994903490570>",
-  whitelist: "<a:anim_wl_cb:1546636688980451489>",
-  whitelisted: "<a:anim_wl_cb:1546636688980451489>",
-  "whitelist cleared": "<a:anim_wl_cb:1546636688980451489>",
-  blacklist: "<a:anim_bl_cb:1546636690746245202>",
-  blacklisted: "<a:anim_bl_cb:1546636690746245202>",
-  "blacklist removed": "<a:anim_bl_cb:1546636690746245202>",
-  "global user blacklist": "<a:anim_bl_cb:1546636690746245202>",
-  "global server blacklist": "<a:anim_bl_cb:1546636690746245202>",
-  owner: "<a:anim_sparkle_85:1546687452079722506>",
-  transfer: "<a:anim_transfer_cb:1546683267892387882>",
-  "ownership transferred": "<a:anim_transfer_cb:1546683267892387882>",
-  "co-owners": "<a:anim_sparkle_85:1546687452079722506>",
-  "co-owners list": "<a:anim_sparkle_85:1546687452079722506>",
-  "trusted managers added": "<a:anim_sparkle_85:1546687452079722506>",
-  "trusted managers removed": "<a:anim_sparkle_85:1546687452079722506>",
-  info: "<a:anim_info_cb:1546639682924712037>",
-  extra: "<a:anim_extra_cb:1546633992030265507>",
-  theme: "<a:anim_sparkle_85:1546687452079722506>",
-  "theme updated": "<a:anim_sparkle_85:1546687452079722506>",
-  "server theme": "<a:anim_sparkle_85:1546687452079722506>",
-  steam: "<:brand_steam:1546587516461645838>",
-  spotify: "<:brand_spotify:1546587517694902313>",
-  github: "<:brand_github:1546587519410372638>",
-  reddit: "<:brand_reddit:1546587523839434824>"
+
+
+const COMMAND_DESCRIPTIONS: Record<string, string> = {
+  reject: "Deny permission to join channel",
+  block: "Deny permission to join channel",
+  permit: "Allow permission to join channel",
+  perm: "Allow permission to join channel",
+  lock: "Lock the voice channel",
+  unlock: "Unlock the voice channel",
+  hide: "Hide the voice channel",
+  unhide: "Unhide the voice channel",
+  mute: "Server mute members in voice channel",
+  vmute: "Server mute members in voice channel",
+  unmute: "Server unmute members in voice channel",
+  vunmute: "Server unmute members in voice channel",
+  deafen: "Server deafen members in voice channel",
+  deaf: "Server deafen members in voice channel",
+  undeafen: "Server undeafen members in voice channel",
+  undeaf: "Server undeafen members in voice channel",
+  kick: "Disconnect members from voice channel",
+  kkick: "Disconnect members from voice channel",
+  dc: "Disconnect members from voice channel",
+  name: "Rename the voice channel",
+  rename: "Rename the voice channel",
+  limit: "Set member limit for voice channel",
+  status: "Set custom status for voice channel",
+  vstatus: "Set custom status for voice channel",
+  setstatus: "Set custom status for voice channel",
+  tmute: "Mute members from sending text messages",
+  tunmute: "Unmute members in text chat",
+  tlock: "Lock text chat in voice channel",
+  tunlock: "Unlock text chat in voice channel",
+  cowner: "Manage co-owners/managers for voice channel",
+  coowner: "Manage co-owners/managers for voice channel",
+  manager: "Manage co-owners/managers for voice channel",
+  man: "Manage co-owners/managers for voice channel",
+  whitelist: "Manage channel whitelist",
+  wl: "Manage channel whitelist",
+  owner: "Transfer channel ownership",
+  transfer: "Transfer channel ownership",
+  claim: "Claim ownership of voice channel",
+  unclaim: "Relinquish channel ownership",
+  ab: "Toggle anti abuse system",
+  antiabuse: "Toggle anti abuse system",
+  fixlag: "Reset voice channel region to resolve lag",
+  bitrate: "Adjust voice channel bitrate",
+  region: "Change voice channel RTC region"
 };
 
 const NO_PARSE_MENTIONS: MessageMentionOptions = { parse: [] as MessageMentionTypes[] };
 
 export class Usages {
-  private static readonly PINK_HEART = "<a:pink_Heartjump:1546859773721444382>";
-  private static readonly WAIT_EMOJI = "<a:gh1y1ne:1546859779333292103>";
-  private static readonly ANGEL_HEART = "<a:94071angelheart:1546859784374976603>";
-  private static readonly KUROMI_SLEEP = "<a:kuromisleeping:1546859789223723008>";
-
   public static sanitize(text: string): string {
     return text.replace(/@everyone/gi, "@\u200beveryone").replace(/@here/gi, "@\u200bhere");
   }
@@ -177,7 +156,7 @@ export class Usages {
   }
 
   public static getThemeHeart(guildId?: string | null): string {
-    return this.PINK_HEART;
+    return "<a:pink_Heartjump:1546859773721444382>";
   }
 
   public static getActionEmoji(actionName: string, guildId?: string | null): string {
@@ -188,12 +167,7 @@ export class Usages {
       if (themeEmoji) return themeEmoji;
     }
 
-    if (ACTION_EMOJIS[key]) return ACTION_EMOJIS[key];
-
-    for (const [k, v] of Object.entries(ACTION_EMOJIS)) {
-      if (key.includes(k) || k.includes(key)) return v;
-    }
-    return this.getThemeHeart(guildId);
+    return EmojiManager.get(key);
   }
 
   public static async build(
@@ -204,7 +178,7 @@ export class Usages {
     const accent = this.resolveAccent(guildId);
     const container = createMultiContainer([title, content], accent);
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
+      flags: MessageFlags.IsComponentsV2,
       components: [container],
       allowedMentions: NO_PARSE_MENTIONS
     };
@@ -215,50 +189,70 @@ export class Usages {
     commandUsage: string,
     customExample?: string
   ): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    let content = "";
-    if (customExample) {
-      const lines = customExample.split("\n").map((l) => l.trim()).filter(Boolean);
-      content = lines
-        .map((l) => {
-          if (l.startsWith("- ")) {
-            return l;
-          }
-          if (l.startsWith("`.") || l.startsWith(".")) {
-            const clean = l.replace(/^`|`$/g, "");
-            const parts = clean.split(/\s+/);
-            const cmd = parts.slice(0, 2).join(" ");
-            const rest = parts.slice(2).join(" ");
-            return `- ${this.PINK_HEART}  __\`${cmd}\`__ ${rest}`;
-          }
-          const cleanUsage = commandUsage.replace(/^`|`$/g, "");
-          const baseCmd = cleanUsage.split(/\s+/).slice(0, 2).join(" ");
-          return `- ${this.PINK_HEART}  __\`${baseCmd}\`__ ${l}`;
-        })
-        .join("\n");
-    } else {
-      const cleanUsage = commandUsage.replace(/^`|`$/g, "");
-      if (/<[^>]+>|\[[^\]]+\]/.test(cleanUsage)) {
-        const parts = cleanUsage.split(/\s+/);
-        const cmd = parts.slice(0, 2).join(" ");
-        const rest = parts.slice(2).join(" ");
-        return this.build(guildId, title, `- ${this.PINK_HEART}  __\`${cmd}\`__ ${rest}`);
-      }
-      if (/\b(name|rename)\b/i.test(cleanUsage)) {
-        content = `- ${this.PINK_HEART}  __\`${cleanUsage}\`__ <newname>`;
-      } else if (/\b(status|vstatus|setstatus)\b/i.test(cleanUsage)) {
-        content = `- ${this.PINK_HEART}  __\`${cleanUsage}\`__ <newstatus>`;
-      } else if (/\b(limit)\b/i.test(cleanUsage)) {
-        content = `- ${this.PINK_HEART}  __\`${cleanUsage}\`__ <0-99>`;
+    const cleanCmd = commandUsage
+      .replace(/^`|`$/g, "")
+      .replace(/^\.v\s+/i, "")
+      .replace(/^\./, "")
+      .split(/\s+/)[0]
+      .toLowerCase();
+
+    const emoji = this.getActionEmoji(cleanCmd, guildId);
+    const capitalizedCmd = cleanCmd.length > 0 ? (cleanCmd.charAt(0).toUpperCase() + cleanCmd.slice(1)) : "Command";
+    const title = `# ${emoji} ${capitalizedCmd} Command`;
+
+    const cleanUsageText = commandUsage.replace(/^`|`$/g, "");
+    let baseCmd = cleanUsageText;
+    if (!baseCmd.startsWith(".")) baseCmd = `.v ${cleanCmd}`;
+
+    let usageLine = "";
+    if (cleanCmd === "reject") {
+      usageLine = `- __\`.v reject <@member|username|ID>|@role|rolename|roleID>\`__`;
+    } else if (cleanCmd === "permit" || cleanCmd === "perm") {
+      usageLine = `- __\`.v permit <@member|username|ID>|@role|rolename|roleID>\`__`;
+    } else if (cleanCmd === "name" || cleanCmd === "rename") {
+      usageLine = `- __\`${baseCmd} <newname>\`__`;
+    } else if (cleanCmd === "limit") {
+      usageLine = `- __\`${baseCmd} <0-99>\`__`;
+    } else if (cleanCmd === "status" || cleanCmd === "vstatus" || cleanCmd === "setstatus") {
+      usageLine = `- __\`${baseCmd} <newstatus>\`__`;
+    } else if (cleanCmd === "kick" || cleanCmd === "mute" || cleanCmd === "unmute" || cleanCmd === "deafen" || cleanCmd === "undeafen" || cleanCmd === "tmute" || cleanCmd === "tunmute") {
+      usageLine = `- __\`${baseCmd} <@member|username|ID>\`__`;
+    } else if (cleanUsageText.includes("wl") || cleanUsageText.includes("whitelist")) {
+      if (cleanUsageText.includes("add")) {
+        usageLine = `- __\`.v wl add <@member|username|ID|@role>\` — Add user or role to whitelist__`;
+      } else if (cleanUsageText.includes("remove") || cleanUsageText.includes("del")) {
+        usageLine = `- __\`.v wl remove <@member|username|ID|@role>\` — Remove user or role from whitelist__`;
       } else {
-        const isUserOnly = /\b(man|manager|cowner|coowner|owner|kick|mute|unmute|deafen|undeafen|claim)\b/i.test(cleanUsage);
-        if (isUserOnly) {
-          content = `- ${this.PINK_HEART}  __\`${cleanUsage}\`__ @user | username | \`ID\``;
-        } else {
-          content = `- ${this.PINK_HEART}  __\`${cleanUsage}\`__ @user | username | \`ID\`\n- ${this.PINK_HEART}  __\`${cleanUsage}\`__ @role | rolename | \`ID\``;
-        }
+        usageLine = `- __\`${cleanUsageText}\`__`;
       }
+    } else if (cleanUsageText.includes("bl") || cleanUsageText.includes("blacklist")) {
+      if (cleanUsageText.includes("add")) {
+        usageLine = `- __\`.v bl add <@member|username|ID|@role>\` — Add user or role to blacklist__`;
+      } else if (cleanUsageText.includes("remove") || cleanUsageText.includes("del")) {
+        usageLine = `- __\`.v bl remove <@member|username|ID|@role>\` — Remove user or role from blacklist__`;
+      } else {
+        usageLine = `- __\`${cleanUsageText}\`__`;
+      }
+    } else if (cleanUsageText.includes("man") || cleanUsageText.includes("manager") || cleanUsageText.includes("cowner") || cleanUsageText.includes("coowner")) {
+      if (cleanUsageText.includes("add")) {
+        usageLine = `- __\`.v man add <@member|username|ID>\` — Add manager to channel__`;
+      } else if (cleanUsageText.includes("remove") || cleanUsageText.includes("del")) {
+        usageLine = `- __\`.v man remove <@member|username|ID>\` — Remove manager from channel__`;
+      } else {
+        usageLine = `- __\`${cleanUsageText}\`__`;
+      }
+    } else {
+      usageLine = `- __\`${cleanUsageText}\`__`;
     }
+
+    if (cleanUsageText.includes(" — ")) {
+      return this.build(guildId, title, usageLine);
+    }
+
+    const desc = COMMAND_DESCRIPTIONS[cleanCmd] || "Command instructions and usage information";
+    const descLine = `- __${desc}__`;
+
+    const content = usageLine.includes(" — ") ? usageLine : `${usageLine}\n${descLine}`;
     return this.build(guildId, title, content);
   }
 
@@ -267,10 +261,82 @@ export class Usages {
     commandUsage: string,
     optionsText: string = "add | remove | list"
   ): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
+    const cleanCmd = commandUsage
+      .replace(/^`|`$/g, "")
+      .replace(/^\.v\s+/i, "")
+      .replace(/^\./, "")
+      .split(/\s+/)[0]
+      .toLowerCase();
+
+    const emoji = this.getActionEmoji(cleanCmd, guildId);
+
+    if (cleanCmd === "wl" || cleanCmd === "whitelist") {
+      const title = `# ${emoji} Whitelist Command`;
+      const lines = [
+        `- __\`.v wl add <@member|username|ID|@role>\` — Add to whitelist__`,
+        `- __\`.v wl remove <@member|username|ID|@role>\` — Remove from whitelist__`,
+        `- __\`.v wl list\` — View whitelisted members & roles__`,
+        `- __\`.v wl clear\` — Clear the channel whitelist__`
+      ];
+      return this.build(guildId, title, lines.join("\n"));
+    }
+
+    if (cleanCmd === "bl" || cleanCmd === "blacklist") {
+      const title = `# ${emoji} Blacklist Command`;
+      const lines = [
+        `- __\`.v bl add <@member|username|ID|@role>\` — Add to blacklist__`,
+        `- __\`.v bl remove <@member|username|ID|@role>\` — Remove from blacklist__`,
+        `- __\`.v bl list\` — View blacklisted members & roles__`,
+        `- __\`.v bl clear\` — Clear your blacklist__`
+      ];
+      return this.build(guildId, title, lines.join("\n"));
+    }
+
+    if (cleanCmd === "man" || cleanCmd === "manager" || cleanCmd === "cowner" || cleanCmd === "coowner") {
+      const title = `# ${emoji} Managers Command`;
+      const lines = [
+        `- __\`.v man add <@member|username|ID>\` — Add channel manager__`,
+        `- __\`.v man remove <@member|username|ID>\` — Remove channel manager__`,
+        `- __\`.v man list\` — View channel managers__`,
+        `- __\`.v man clear\` — Clear all managers__`
+      ];
+      return this.build(guildId, title, lines.join("\n"));
+    }
+
+    const title = `# ${emoji} Notice`;
     const cleanUsage = commandUsage.replace(/^`|`$/g, "");
-    const content = `- __What Did You Mean..!!__\n- ${this.PINK_HEART} __\`${cleanUsage}\`__ ${optionsText}`;
+    const content = `- __\`${cleanUsage}\` ${optionsText}__`;
     return this.build(guildId, title, content);
+  }
+
+  private static formatCleanLine(text: string): string {
+    let clean = text.replace(/^- (?:<a?:[\w~]+:\d+>\s*)?/, "").trim();
+    clean = clean.replace(/\s*⁘\s*$/, "").trim();
+
+    if (clean.includes(" :__") || clean.includes(" :") || clean.includes(":__") || clean.includes(":")) {
+      const match = clean.match(/^(.*?)(?::__|:\s*|\s*:\s*)(.*)$/);
+      if (match) {
+        let prefix = match[1].replace(/^(\*\*__|__\*\*|__|\*\*)+/, "").replace(/(\*\*__|__\*\*|__|\*\*)+$/, "").trim();
+        let suffix = match[2].replace(/^(\*\*__|__\*\*|__|\*\*)+/, "").replace(/(\*\*__|__\*\*|__|\*\*)+$/, "").trim();
+        return `- __${prefix}:__ ${suffix}`;
+      }
+    }
+
+    if (clean.includes(" has been changed to") || clean.includes(" updated to")) {
+      const match = clean.match(/^(.*?)(has been changed to|updated to)\s*(.*)$/i);
+      if (match) {
+        const prefix = match[1].replace(/^(\*\*__|__\*\*|__|\*\*)+/, "").replace(/(\*\*__|__\*\*|__|\*\*)+$/, "").trim();
+        const mid = match[2].trim();
+        let suffix = match[3].trim();
+        suffix = suffix.replace(/^(\*\*__|__\*\*|__|\*\*)+/, "").replace(/(\*\*__|__\*\*|__|\*\*)+$/, "").trim();
+        const fullPrefix = prefix ? `${prefix} ${mid}:__` : `${mid}:__`;
+        return `- __${fullPrefix} ${suffix}`;
+      }
+    }
+
+    clean = clean.replace(/^(\*\*__|__\*\*)+/, "").replace(/(\*\*__|__\*\*)+$/, "").trim();
+    clean = clean.replace(/^(__|\*\*)+/, "").replace(/(__|\*\*)+$/, "").trim();
+    return `- __${clean}__`;
   }
 
   public static async executedAction(
@@ -279,45 +345,55 @@ export class Usages {
     detailText: string
   ): Promise<V2Payload> {
     const emoji = this.getActionEmoji(actionName, guildId);
-    const title = `# ⌇ ${emoji} ⌇ __System Executed..!!__`;
+    const title = `# ${emoji} ${actionName}`;
     let content = detailText;
     if (detailText.includes("\n")) {
       const lines = detailText.split("\n").map((l) => l.trim()).filter(Boolean);
-      content = lines
-        .map((l) => {
-          const cleanLine = l.replace(/^- (?:<a?:[\w~]+:\d+>\s*)?/, "").trim();
-          return `- ${this.PINK_HEART} ${cleanLine}`;
-        })
-        .join("\n");
+      content = lines.map((l) => this.formatCleanLine(l)).join("\n");
     } else {
-      const cleanLine = content.replace(/^- (?:<a?:[\w~]+:\d+>\s*)?/, "").trim();
-      content = `- ${this.PINK_HEART} ${cleanLine}`;
+      content = this.formatCleanLine(detailText);
     }
     return this.build(guildId, title, content);
   }
 
   public static async notManagerOrOwner(guildId: string | null | undefined): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    const content = `- ${this.PINK_HEART} __You must be the channel owner or a manager to perform this action__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Notice`;
+    const content = `- __Only the owner or co-owners can use this__`;
     return this.build(guildId, title, content);
   }
 
   public static async impossible(guildId: string | null | undefined, reason: string): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    const cleanReason = reason.replace(/^\*\*__|\*\*__|__\*\*|:\s*$/g, "").trim();
-    const content = `- ${this.PINK_HEART} __${cleanReason}__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Notice`;
+    const cleanReason = reason.replace(/^\*\*__|\*\*__|__\*\*|:\s*$/g, "").replace(/\s*⁘\s*$/, "").trim();
+    const content = `- __${cleanReason}__`;
+    return this.build(guildId, title, content);
+  }
+
+  public static async permissionError(
+    guildId: string | null | undefined,
+    action: string,
+    missingPermissions: string[]
+  ): Promise<V2Payload> {
+    const emoji = this.getActionEmoji("reject", guildId);
+    const title = `# ${emoji} Missing Permissions`;
+    const permsText = missingPermissions.map((p) => `\`${p}\``).join(", ");
+    const content = `- __Cannot complete action: ${action}__\n- __Required Discord permissions missing: ${permsText}__`;
     return this.build(guildId, title, content);
   }
 
   public static async invalidInputWarning(guildId?: string | null): Promise<V2Payload> {
-    const title = `# <a:pink_hellokittyswim:1547337485602783363>  __Nahhh...!!!__`;
-    const content = `- __I thnk Next Time I'm gonna Blacklist You.!!!__\n- __Be Goof And Don't run this comamnd again!__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Notice`;
+    const content = `- __Please provide a valid and safe input__`;
     return this.build(guildId, title, content);
   }
 
   public static async notInVoice(guildId: string | null | undefined): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    const content = `- ${this.PINK_HEART} __You must be in a voice channel to use this command__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Notice`;
+    const content = `- __You Need To Be in Voice Channel to use that__`;
     return this.build(guildId, title, content);
   }
 
@@ -334,9 +410,10 @@ export class Usages {
   }
 
   public static async renameCooldown(guildId: string | null | undefined, remainingSeconds: number): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
+    const emoji = this.getActionEmoji("rename", guildId);
+    const title = `# ${emoji} Notice`;
     const formattedTime = this.formatDuration(remainingSeconds);
-    const content = `- ${this.PINK_HEART} __Channel rename is on cooldown: ${formattedTime} remaining__`;
+    const content = `- __Channel rename is on cooldown: ${formattedTime} remaining__`;
     return this.build(guildId, title, content);
   }
 
@@ -344,74 +421,86 @@ export class Usages {
     guildId: string | null | undefined,
     message: string
   ): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    const clean = message.replace(/^\*\*__|\*\*__|__\*\*|:\s*$/g, "").trim();
-    const content = `- ${this.PINK_HEART} __${clean}__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Notice`;
+    const clean = message.replace(/^\*\*__|\*\*__|__\*\*|:\s*$/g, "").replace(/\s*⁘\s*$/, "").trim();
+    const content = `- __${clean}__`;
     return this.build(guildId, title, content);
   }
 
   public static async selfReject(guildId: string | null | undefined): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    const content = `- ${this.PINK_HEART} __You can't reject Yourself...__`;
+    const emoji = this.getActionEmoji("reject", guildId);
+    const title = `# ${emoji} Notice`;
+    const content = `- __You cannot reject yourself__`;
     return this.build(guildId, title, content);
   }
 
   public static async stopDoingThat(guildId: string | null | undefined, reason: string): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Wait a Second..!!__`;
-    const cleanReason = reason.replace(/^\*\*__|\*\*__|__\*\*|:\s*$/g, "").trim();
-    const content = `- ${this.PINK_HEART} __${cleanReason}__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Notice`;
+    const cleanReason = reason.replace(/^\*\*__|\*\*__|__\*\*|:\s*$/g, "").replace(/\s*⁘\s*$/, "").trim();
+    const content = `- __${cleanReason}__`;
     return this.build(guildId, title, content);
   }
 
-  public static async claimPrompt(guildId: string | null | undefined): Promise<V2Payload> {
+  public static async claimPrompt(guildId: string | null | undefined, ownerId?: string | null): Promise<V2Payload> {
     const accent = this.resolveAccent(guildId);
     const container = new ContainerBuilder();
     if (accent) {
       container.setAccentColor(getAccentColorInt(accent));
     }
+    const claimEmoji = this.getActionEmoji("claim", guildId);
+    const ownerMention = ownerId ? `<@${ownerId}>` : "Owner";
+
+    const lines = [
+      `-# __${ownerMention} has left the channel__ ⁘`,
+      `-# __You can now claim ownership__ ⁘`
+    ].join("\n");
+
     container
-      .addSeparatorComponents(new SeparatorBuilder())
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# ${this.PINK_HEART} __Owner Has Left Channel__`)
+        new TextDisplayBuilder().setContent(`## ${claimEmoji} Owner Left Channel`)
       )
-      .addSeparatorComponents(new SeparatorBuilder())
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`__Claim the channel before owner returns__`)
+        new TextDisplayBuilder().setContent(lines)
       )
-      .addSeparatorComponents(new SeparatorBuilder())
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addActionRowComponents(
         new ActionRowBuilder<ButtonBuilder>().addComponents(
           new ButtonBuilder()
             .setCustomId("btn:claim")
             .setLabel("Claim")
-            .setEmoji("<a:anim_claim_cb:1546633981829718106>")
+            .setEmoji(claimEmoji)
             .setStyle(ButtonStyle.Secondary)
         )
-      )
-      .addSeparatorComponents(new SeparatorBuilder());
+      );
 
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
+      flags: MessageFlags.IsComponentsV2,
       components: [container.toJSON()],
       allowedMentions: NO_PARSE_MENTIONS
     };
   }
 
   public static async ownerReturned(guildId: string | null | undefined, ownerId: string): Promise<V2Payload> {
-    const title = `# ⌇ <a:anim_sparkle_85:1546687452079722506> ⌇ __Owner Returned__`;
-    const content = `<@${ownerId}> __has returned to their channel__`;
+    const emoji = this.getActionEmoji("owner", guildId);
+    const title = `## ${emoji} Owner Returned`;
+    const content = `-# <@${ownerId}> __has returned to the channel__ ⁘`;
     return this.build(guildId, title, content);
   }
 
   public static async claimedChannel(guildId: string | null | undefined, claimantId: string): Promise<V2Payload> {
-    const title = `# ⌇ <a:anim_claim_cb:1546633981829718106> ⌇ __System Executed__`;
-    const content = `<@${claimantId}> __has claimed the channel__`;
+    const emoji = this.getActionEmoji("claim", guildId);
+    const title = `## ${emoji} Channel Claimed`;
+    const content = `-# <@${claimantId}> __has claimed the channel__ ⁘`;
     return this.build(guildId, title, content);
   }
 
   public static async cooldownNotice(guildId: string | null | undefined, durationStr: string = "5s"): Promise<V2Payload> {
-    const title = `# ${this.WAIT_EMOJI} __Cooldown Notice__`;
-    const content = `__You have been cooldowned for \`${durationStr}\`__`;
+    const emoji = this.getActionEmoji("info", guildId);
+    const title = `# ${emoji} Cooldown Notice`;
+    const content = `- __You are on cooldown for \`${durationStr}\`__`;
     return this.build(guildId, title, content);
   }
 
@@ -420,13 +509,14 @@ export class Usages {
     const container = new ContainerBuilder();
     if (accent) container.setAccentColor(getAccentColorInt(accent));
 
+    const emoji = this.getActionEmoji("antiabuse", guildId);
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# <a:3644hellokittyrun:1546859794478932078>  __ <@${ownerId}> Anti Abuse Deteced..!!__`)
+        new TextDisplayBuilder().setContent(`# ${emoji} <@${ownerId}> Anti Abuse Detected`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`**__<@${targetId}> Keep joining Your Vc You Need to Deal With Him__**`)
+        new TextDisplayBuilder().setContent(`- __<@${targetId}> keeps repeatedly joining your voice channel. Take action below__`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addActionRowComponents(
@@ -442,11 +532,10 @@ export class Usages {
             .setEmoji("<a:anim_reject_cb:1546634011315806218>")
             .setStyle(ButtonStyle.Secondary)
         )
-      )
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+      );
 
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
+      flags: MessageFlags.IsComponentsV2,
       components: [container.toJSON()],
       allowedMentions: { users: [ownerId] }
     };
@@ -467,16 +556,15 @@ export class Usages {
 
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# ⌇ ${emoji} ⌇ __Anti Abuse Handled__`)
+        new TextDisplayBuilder().setContent(`# ${emoji} Anti Abuse Handled`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`<@${ownerId}> **__has ${statusText}__**`)
-      )
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
+        new TextDisplayBuilder().setContent(`- <@${ownerId}> __has ${statusText}__`)
+      );
 
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
+      flags: MessageFlags.IsComponentsV2,
       components: [container.toJSON()],
       allowedMentions: { users: [ownerId] }
     };
@@ -484,13 +572,13 @@ export class Usages {
 
   public static formatUserTarget(verb: string, ids: string[]): string {
     const mentions = ids.map((id) => `<@${id}>`).join(" ");
-    return `__User has been ${verb}:__ ${mentions}`;
+    return `Target has been ${verb}: ${mentions}`;
   }
 }
 
 export function noPermissionReply(accentColorHex = "#ff0000") {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Wait a Second..!!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __You don't have permission to do that!!__`;
+  const title = `# ${Usages.getActionEmoji("info")} Notice`;
+  const text = `- __Only the owner or co-owners can use this__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -499,8 +587,8 @@ export function noPermissionReply(accentColorHex = "#ff0000") {
 }
 
 export function botNoPermissionReply(accentColorHex = "#ff0000") {
-  const title = `# <a:kawaiiangrykuromi:1546859799034077305> __System Failed...!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __I don't have enough permission to execute that action.__`;
+  const title = `# ${Usages.getActionEmoji("reject")} System Error`;
+  const text = `- __I don't have enough permission to execute that action__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -508,16 +596,30 @@ export function botNoPermissionReply(accentColorHex = "#ff0000") {
   };
 }
 
-export function usageExampleReply({ commandName, title, description = "Command usage information", usage, example, examples, accentColorHex = "#3b82f6" }: any) {
+export interface UsageExampleOptions {
+  commandName?: string;
+  title?: string;
+  description?: string;
+  usage?: string;
+  example?: string;
+  examples?: string[];
+  accentColorHex?: string;
+}
+
+export function usageExampleReply({
+  commandName,
+  title,
+  description = "Command usage information",
+  usage,
+  example,
+  examples,
+  accentColorHex = "#3b82f6"
+}: UsageExampleOptions = {}): V2Payload {
   const cmd = commandName || title || "Command";
   const capitalizedCmd = typeof cmd === "string" && cmd.length ? (cmd.charAt(0).toUpperCase() + cmd.slice(1)) : "Command";
+  const emoji = Usages.getActionEmoji(cmd.toLowerCase());
 
-  const header = `# <a:kuromisleeping:1546859789223723008> __System Help__`;
-  const commandBlock = `__**${capitalizedCmd} Command**__\n` +
-    `> <a:pink_Heartjump:1546859773721444382> __${description}__`;
-
-  const blocks: string[] = [header, commandBlock];
-
+  const header = `# ${emoji} ${capitalizedCmd} Command`;
   const usageLines: string[] = [];
   if (usage) {
     usageLines.push(formatUsageLine(usage));
@@ -540,37 +642,42 @@ export function usageExampleReply({ commandName, title, description = "Command u
     usageLines.push("`No usage provided.`");
   }
 
-  blocks.push(`<a:pink_Heartjump:1546859773721444382> __Usage:__\n${usageLines.join("\n")}`);
+  const content = `- __${usageLines.join(" ")}__\n- __${description}__`;
 
   return {
     flags: MessageFlags.IsComponentsV2,
-    components: [createMultiContainer(blocks, accentColorHex)],
+    components: [createMultiContainer([header, content], accentColorHex)],
     allowedMentions: NO_PARSE_MENTIONS
   };
 }
 
-export function errorReply({ title = "Wait a Second..!!", errors, message, accentColorHex = "#ff0000" }: { title?: string; errors?: any; message?: any; accentColorHex?: string } = {}) {
-  const header = `# <a:gh1y1ne:1546859779333292103> __${title}__`;
+export interface ErrorReplyOptions {
+  title?: string;
+  errors?: string[];
+  message?: string;
+  accentColorHex?: string;
+}
+
+export function errorReply({
+  title = "Notice",
+  errors,
+  message,
+  accentColorHex = "#ff0000"
+}: ErrorReplyOptions = {}): V2Payload {
+  const emoji = Usages.getActionEmoji("info");
+  const header = `# ${emoji} ${title}`;
   let body: string;
   if (message) {
     if (message.includes("\n")) {
       const lines = message.split("\n").map((l: string) => l.trim()).filter(Boolean);
-      body = lines.map((l: string, idx: number) => {
-        if (idx === 0) return `<a:pink_Heartjump:1546859773721444382> __${l}__`;
-        return `<a:pink_Heartjump:1546859773721444382> __${l}__`;
-      }).join("\n");
+      body = lines.map((l: string) => `- __${l}__`).join("\n");
     } else {
-      body = `- <a:pink_Heartjump:1546859773721444382> __${message}__`;
+      body = `- __${message}__`;
     }
   } else if (Array.isArray(errors) && errors.length > 0) {
-    if (errors.length === 1) {
-      body = `- <a:pink_Heartjump:1546859773721444382> __${errors[0]}__`;
-    } else {
-      const formatted = errors.map((err) => `- <a:pink_Heartjump:1546859773721444382> __${err}__`).join("\n");
-      body = formatted;
-    }
+    body = errors.map((err) => `- __${err}__`).join("\n");
   } else {
-    body = `- <a:pink_Heartjump:1546859773721444382> __An error occurred.__`;
+    body = `- __An error occurred__`;
   }
 
   return {
@@ -581,8 +688,8 @@ export function errorReply({ title = "Wait a Second..!!", errors, message, accen
 }
 
 export function alreadyJailedReply(accentColorHex = "#ff0000") {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Wait a Second..!!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __Check User roles he is already jailed__`;
+  const title = `# ${Usages.getActionEmoji("info")} Notice`;
+  const text = `- __User is already jailed__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -591,8 +698,8 @@ export function alreadyJailedReply(accentColorHex = "#ff0000") {
 }
 
 export function alreadyVerifiedReply(accentColorHex = "#ff0000") {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Wait a Second..!!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __Check User roles he is already verified__`;
+  const title = `# ${Usages.getActionEmoji("info")} Notice`;
+  const text = `- __User is already verified__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -601,8 +708,8 @@ export function alreadyVerifiedReply(accentColorHex = "#ff0000") {
 }
 
 export function alreadyVerifiedGirlReply(accentColorHex = "#ff0000") {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Wait a Second..!!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __Check User roles she is already verified__`;
+  const title = `# ${Usages.getActionEmoji("info")} Notice`;
+  const text = `- __User is already verified__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -611,8 +718,8 @@ export function alreadyVerifiedGirlReply(accentColorHex = "#ff0000") {
 }
 
 export function notJailedReply(accentColorHex = "#ff0000") {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Wait a Second..!!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __Check User roles he is not jailed__`;
+  const title = `# ${Usages.getActionEmoji("info")} Notice`;
+  const text = `- __User is not jailed__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -621,8 +728,8 @@ export function notJailedReply(accentColorHex = "#ff0000") {
 }
 
 export function notVerifiedReply(accentColorHex = "#ff0000") {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Wait a Second..!!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __Check User roles he is not verified__`;
+  const title = `# ${Usages.getActionEmoji("info")} Notice`;
+  const text = `- __User is not verified__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -631,8 +738,8 @@ export function notVerifiedReply(accentColorHex = "#ff0000") {
 }
 
 export function processingReply({ actionText, accentColorHex = "#3b82f6" }: { actionText: string; accentColorHex?: string }) {
-  const title = `# <a:kuromisleeping:1546859789223723008> __System Processing.....!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __${actionText}__`;
+  const title = `# ${Usages.getActionEmoji("info")} Processing`;
+  const text = `- __${actionText}__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -642,13 +749,20 @@ export function processingReply({ actionText, accentColorHex = "#3b82f6" }: { ac
 
 export function executedReply({ resultText, action = "", accentColorHex = "#3b82f6" }: { resultText: string; action?: string; accentColorHex?: string }) {
   const emoji = Usages.getActionEmoji(action);
-  const title = `# ⌇ ${emoji} ⌇ __System Executed__`;
+  const title = `# ${emoji} ${action || "System Executed"}`;
+  const cleanLine = (l: string) => {
+    let clean = l.replace(/^- (?:<a?:[\w~]+:\d+>\s*)?/, "").trim();
+    clean = clean.replace(/^(\*\*__|__\*\*)+/, "").replace(/(\*\*__|__\*\*)+$/, "").trim();
+    clean = clean.replace(/^(__|\*\*)+/, "").replace(/(__|\*\*)+$/, "").trim();
+    clean = clean.replace(/\s*⁘\s*$/, "").trim();
+    return `- __${clean}__`;
+  };
   let text: string;
   if (resultText.includes("\n")) {
     const lines = resultText.split("\n").map((l) => l.trim()).filter(Boolean);
-    text = lines.map((l) => `- <a:pink_Heartjump:1546859773721444382> __${l.replace(/^__\*\*|\*\*__$/g, "")}__`).join("\n");
+    text = lines.map((l) => cleanLine(l)).join("\n");
   } else {
-    text = `- <a:pink_Heartjump:1546859773721444382> __${resultText.replace(/^__\*\*|\*\*__$/g, "")}__`;
+    text = cleanLine(resultText);
   }
   return {
     flags: MessageFlags.IsComponentsV2,
@@ -657,9 +771,9 @@ export function executedReply({ resultText, action = "", accentColorHex = "#3b82
   };
 }
 
-export function hierarchyErrorReply({ message = "My role or yours isn't Higher Than user I can't do nothing with him...!", accentColorHex = "#ff0000" } = {}) {
-  const title = `# <a:gh1y1ne:1546859779333292103> __System Hierarchy...!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __${message}__`;
+export function hierarchyErrorReply({ message = "Role hierarchy error: Member has higher or equal permissions.", accentColorHex = "#ff0000" } = {}) {
+  const title = `# ${Usages.getActionEmoji("reject")} Hierarchy Error`;
+  const text = `- __${message}__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -667,9 +781,9 @@ export function hierarchyErrorReply({ message = "My role or yours isn't Higher T
   };
 }
 
-export function configErrorReply({ message = "System Isn't yet Configured in server", accentColorHex = "#ff0000" } = {}) {
-  const title = `# <a:gh1y1ne:1546859779333292103> __System Configuration...!__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __${message}__`;
+export function configErrorReply({ message = "The system is not configured in this server yet.", accentColorHex = "#ff0000" } = {}) {
+  const title = `# ${Usages.getActionEmoji("info")} Configuration Notice`;
+  const text = `- __${message}__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -678,8 +792,8 @@ export function configErrorReply({ message = "System Isn't yet Configured in ser
 }
 
 export function boostTierRequiredReply({ requiredLevel = 2, accentColorHex = "#ff0000" } = {}) {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Boost Level Required__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __This server must be at least Boost Tier ${requiredLevel} to set role icons!__`;
+  const title = `# ${Usages.getActionEmoji("info")} Boost Level Required`;
+  const text = `- __This server must be at least Boost Tier ${requiredLevel} to set role icons!__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -688,8 +802,8 @@ export function boostTierRequiredReply({ requiredLevel = 2, accentColorHex = "#f
 }
 
 export function invalidEmojiReply({ message = "Please provide an emoji from this server or a default Discord emoji.", accentColorHex = "#ff0000" } = {}) {
-  const title = `# <a:gh1y1ne:1546859779333292103> __Invalid Emoji__`;
-  const text = `- <a:pink_Heartjump:1546859773721444382> __${message}__`;
+  const title = `# ${Usages.getActionEmoji("info")} Invalid Emoji`;
+  const text = `- __${message}__`;
   return {
     flags: MessageFlags.IsComponentsV2,
     components: [createMultiContainer([title, text], accentColorHex)],
@@ -701,7 +815,7 @@ export function buildInfoContainer({
   sections,
   banner,
   accentColorHex = "#3b82f6",
-  headerEmoji = "<a:pink_Heartjump:1546859773721444382>"
+  headerEmoji = "<a:anim_info_cb:1546639682924712037>"
 }: {
   sections: { title: string; content: string; thumbnail?: string | null; emoji?: string }[];
   banner?: string | null;
@@ -714,7 +828,7 @@ export function buildInfoContainer({
     if (idx > 0) container.addSeparatorComponents(new SeparatorBuilder());
 
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# ${section.emoji || headerEmoji} __${section.title}__`)
+      new TextDisplayBuilder().setContent(`# ${section.emoji || headerEmoji} ${section.title}`)
     );
     container.addSeparatorComponents(new SeparatorBuilder());
 

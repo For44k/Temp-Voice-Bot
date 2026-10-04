@@ -1,6 +1,5 @@
 import {
   Message,
-  PermissionFlagsBits,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
@@ -78,8 +77,8 @@ export const bannerCommand: ICommand = {
       }
 
       await message.reply({
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [container] as any,
+        flags: MessageFlags.IsComponentsV2,
+        components: [container],
         allowedMentions: { parse: [] }
       });
       return;
@@ -88,7 +87,7 @@ export const bannerCommand: ICommand = {
     if (sub === "allow" || sub === "grant" || sub === "add") {
       if (!isBotDev) {
         await message.reply({
-          ...(await Usages.impossible(guildId, "**__Only Bot Owner & Developers can grant banner access :__**")),
+          ...(await Usages.impossible(guildId, "Only Bot Owner & Developers can grant banner access")),
           allowedMentions: { parse: [] }
         });
         return;
@@ -127,7 +126,7 @@ export const bannerCommand: ICommand = {
     if (sub === "revoke" || sub === "deny" || sub === "disallow") {
       if (!isBotDev) {
         await message.reply({
-          ...(await Usages.impossible(guildId, "**__Only Bot Owner & Developers can revoke banner access :__**")),
+          ...(await Usages.impossible(guildId, "Only Bot Owner & Developers can revoke banner access")),
           allowedMentions: { parse: [] }
         });
         return;
@@ -211,7 +210,9 @@ export const bannerCommand: ICommand = {
       return;
     }
 
-    const imageUrl = attachment ? attachment.url : possibleUrl!;
+    const imageUrl = attachment ? attachment.url : possibleUrl;
+    if (!imageUrl) return;
+
     const processingMsg = await message.reply({
       ...(await Usages.executedAction(
         guildId,
@@ -249,9 +250,10 @@ export const bannerCommand: ICommand = {
         )),
         allowedMentions: { parse: [] }
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       await processingMsg.edit({
-        ...(await Usages.impossible(guildId, `**__Error uploading banner :__** ${err.message}`)),
+        ...(await Usages.impossible(guildId, `Error uploading banner: ${errorMessage}`)),
         allowedMentions: { parse: [] }
       });
     }

@@ -113,6 +113,9 @@ export class VoiceMemoryStore {
 
         if (!ch) {
           staleChannelIds.push(channelId);
+        } else if (ch.isVoiceBased() && ch.members.size === 0) {
+          const { VoiceLifecycleService } = await import("../services/voice-lifecycle.service");
+          void VoiceLifecycleService.checkEmpty(ch).catch(() => {});
         }
       }
 
@@ -125,6 +128,24 @@ export class VoiceMemoryStore {
       }
     } catch (err) {
       FastLogger.error("Error during VoiceMemoryStore discord reconciliation", err);
+    }
+  }
+
+  private static sweepInterval: NodeJS.Timeout | null = null;
+
+  public static startPeriodicSweep(client: Client, intervalMs = 180_000): void {
+    if (this.sweepInterval) {
+      clearInterval(this.sweepInterval);
+    }
+    this.sweepInterval = setInterval(() => {
+      void this.reconcileWithDiscord(client);
+    }, intervalMs);
+  }
+
+  public static stopPeriodicSweep(): void {
+    if (this.sweepInterval) {
+      clearInterval(this.sweepInterval);
+      this.sweepInterval = null;
     }
   }
 

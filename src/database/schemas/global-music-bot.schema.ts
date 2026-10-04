@@ -7,7 +7,7 @@ export interface IGlobalMusicBot {
 }
 
 const GlobalMusicBotSchema = new Schema<IGlobalMusicBot>({
-  botId: { type: String, required: true, unique: true, index: true },
+  botId: { type: String, required: true, unique: true },
   prefix: { type: String, required: true },
   addedAt: { type: Date, default: Date.now }
 });

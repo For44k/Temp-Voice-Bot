@@ -1,6 +1,7 @@
 import { VoiceState, VoiceChannel, MessageFlags, Routes } from "discord.js";
 import { GuildMemoryStore } from "../cache/guild.store";
 import { VoiceLifecycleService } from "../services/voice-lifecycle.service";
+import { VoiceCreationService } from "../services/voice-creation.service";
 import { VoiceMemoryStore } from "../cache/voice.store";
 import { Usages } from "../../../shared/embeds/usages";
 import { GlobalBlacklistStore } from "../../user/cache/global-blacklist.store";
@@ -30,9 +31,17 @@ export async function onVoiceStateUpdate(oldState: VoiceState, newState: VoiceSt
           return;
         }
 
-        const rateLimit = VoiceLifecycleService.checkJoinRateLimit(member.id);
+        const rateLimit = VoiceCreationService.checkJoinRateLimit(member.id);
         if (rateLimit.isRateLimited) {
           await member.voice.disconnect().catch(() => { });
+
+          if (oldState.channelId) {
+            const oldChannel = oldState.channel as VoiceChannel | null;
+            if (oldChannel && VoiceMemoryStore.get(oldChannel.id)) {
+              VoiceLifecycleService.checkEmpty(oldChannel).catch(() => { });
+            }
+          }
+
           queueMicrotask(async () => {
             try {
               const notice = await Usages.cooldownNotice(guildId, `${rateLimit.remainingSeconds}s`);
@@ -42,7 +51,7 @@ export async function onVoiceStateUpdate(oldState: VoiceState, newState: VoiceSt
           return;
         }
 
-        await VoiceLifecycleService.createRoom(member);
+        await VoiceCreationService.createRoom(member);
 
         if (oldState.channelId) {
           const oldChannel = oldState.channel as VoiceChannel | null;
@@ -74,7 +83,7 @@ export async function onVoiceStateUpdate(oldState: VoiceState, newState: VoiceSt
         if (!oldSession.claimPromptMessageId) {
           queueMicrotask(async () => {
             try {
-              const promptPayload = await Usages.claimPrompt(guildId);
+              const promptPayload = await Usages.claimPrompt(guildId, oldSession.ownerId);
               const msg = await oldChannel.send(promptPayload).catch(() => null);
               if (msg) {
                 oldSession.claimPromptMessageId = msg.id;

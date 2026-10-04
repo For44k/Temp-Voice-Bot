@@ -1,14 +1,12 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceSettingsService } from "../../services/voice-settings.service";
 import { Usages } from "../../../../shared/embeds/usages";
-import { ActionLogger } from "../../../../core/logger/action.logger";
 
-const VALID_REGIONS = [
+const REGION_OPTIONS = [
   "auto",
   "brazil",
   "rotterdam",
-  "frankfurt",
   "hongkong",
   "india",
   "japan",
@@ -30,47 +28,52 @@ export const regionCommand: ICommand = {
     const channel = member.voice.channel as VoiceChannel | null;
     const guildId = message.guildId;
 
-    if (!channel) {
-      await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
-      return;
-    }
+    const input = args[0]?.toLowerCase().trim() || "";
+    const result = await VoiceSettingsService.setRegion(channel, member, input);
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
-      await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
-      return;
-    }
-
-    const input = args[0]?.toLowerCase().trim();
-
-    if (!input || !VALID_REGIONS.includes(input)) {
-      const regionList = VALID_REGIONS.map((r) => `\`${r}\``).join(", ");
-      await message.reply({
-        ...(await Usages.invalidCommand(
+    switch (result.status) {
+      case "not_in_voice": {
+        await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "not_manager": {
+        await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "invalid_region": {
+        const regionList = REGION_OPTIONS.map((r) => `\`${r}\``).join(", ");
+        await message.reply({
+          ...(await Usages.invalidCommand(
+            guildId,
+            "`.v region <location>`",
+            `Available: ${regionList}`
+          )),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "same_region": {
+        const embed = await Usages.alreadyAction(guildId, `Voice channel region is already set to \`${result.region || "AUTOMATIC"}\``);
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
+      case "failed": {
+        await message.reply({
+          ...(await Usages.impossible(guildId, "**__Failed to update region on Discord :__**")),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "updated": {
+        const display = result.region ? result.region.toUpperCase() : "AUTOMATIC";
+        const embed = await Usages.executedAction(
           guildId,
-          "`.v region <location>`",
-          `Available: ${regionList}`
-        )),
-        allowedMentions: { parse: [] }
-      });
-      return;
+          "Region",
+          `**__Voice Region changed to__** **\`${display}\`**`
+        );
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
     }
-
-    const rtcVal = input === "auto" ? null : input;
-    await channel.setRTCRegion(rtcVal);
-
-    ActionLogger.logAction({
-      guildId: guildId!,
-      executorId: member.id,
-      action: "Voice Region Changed",
-      channelName: channel.name,
-      details: `RTC Region set to \`${input}\``
-    }).catch(() => {});
-
-    const embed = await Usages.executedAction(
-      guildId,
-      "Region",
-      `**__Voice Region changed to__** **\`${input.toUpperCase()}\`**`
-    );
-    await message.reply({ ...embed, allowedMentions: { parse: [] } });
   }
 };

@@ -1,7 +1,184 @@
 import { ColorResolvable } from "discord.js";
 import { GuildThemeModel } from "../../database/schemas/guild-theme.schema";
+import { FastLogger } from "../logger/logger";
 
 export const THEME_BUTTON_EMOJIS: Record<string, Record<string, string>> = {
+  "#a7a903": {
+    "lock": "<a:a_lock_grad_citrus:1548094334342012988>",
+    "unlock": "<a:a_unlock_grad_citrus:1548094339102802030>",
+    "hide": "<a:a_hide_grad_citrus:1548094343032869005>",
+    "unhide": "<a:a_unhide_grad_citrus:1548094346862141519>",
+    "antiabuse": "<a:a_antiabuse_grad_citrus:1548094351283060867>",
+    "limit": "<a:a_limit_grad_citrus:1548094355233968159>",
+    "rename": "<a:a_rename_grad_citrus:1548094358476161088>",
+    "info": "<a:a_info_grad_citrus:1548094362427199509>",
+    "claim": "<a:a_claim_grad_citrus:1548094365992493176>",
+    "extra": "<a:a_extra_grad_citrus:1548094369469436017>",
+    "wl": "<a:a_wl_grad_citrus:1548094374595002480>",
+    "bl": "<a:a_bl_grad_citrus:1548094378503839754>",
+    "permit": "<a:a_permit_grad_citrus:1548094381993627768>",
+    "reject": "<a:a_reject_grad_citrus:1548094385848061993>",
+    "music": "<a:a_music_grad_citrus:1548094403845951630>",
+    "activity": "<a:a_activity_grad_citrus:1548094408895893535>",
+    "mute": "<a:a_mute_grad_citrus:1548094389530660934>",
+    "deafen": "<a:a_deafen_grad_citrus:1548094393146150982>",
+    "tempreject": "<a:a_tempreject_grad_citrus:1548094396778553415>",
+    "randomreject": "<a:a_randomreject_grad_citrus:1548094400234791013>"
+  },
+  "#ecb280": {
+    "lock": "<a:a_lock_grad_citrus:1548094334342012988>",
+    "unlock": "<a:a_unlock_grad_citrus:1548094339102802030>",
+    "hide": "<a:a_hide_grad_citrus:1548094343032869005>",
+    "unhide": "<a:a_unhide_grad_citrus:1548094346862141519>",
+    "antiabuse": "<a:a_antiabuse_grad_citrus:1548094351283060867>",
+    "limit": "<a:a_limit_grad_citrus:1548094355233968159>",
+    "rename": "<a:a_rename_grad_citrus:1548094358476161088>",
+    "info": "<a:a_info_grad_citrus:1548094362427199509>",
+    "claim": "<a:a_claim_grad_citrus:1548094365992493176>",
+    "extra": "<a:a_extra_grad_citrus:1548094369469436017>",
+    "wl": "<a:a_wl_grad_citrus:1548094374595002480>",
+    "bl": "<a:a_bl_grad_citrus:1548094378503839754>",
+    "permit": "<a:a_permit_grad_citrus:1548094381993627768>",
+    "reject": "<a:a_reject_grad_citrus:1548094385848061993>",
+    "music": "<a:a_music_grad_citrus:1548094403845951630>",
+    "activity": "<a:a_activity_grad_citrus:1548094408895893535>",
+    "mute": "<a:a_mute_grad_citrus:1548094389530660934>",
+    "deafen": "<a:a_deafen_grad_citrus:1548094393146150982>",
+    "tempreject": "<a:a_tempreject_grad_citrus:1548094396778553415>",
+    "randomreject": "<a:a_randomreject_grad_citrus:1548094400234791013>"
+  },
+  "#8085b2": {
+    "lock": "<a:a_lock_grad_ocean:1548094416542240838>",
+    "unlock": "<a:a_unlock_grad_ocean:1548094420899864636>",
+    "hide": "<a:a_hide_grad_ocean:1548094424561754132>",
+    "unhide": "<a:a_unhide_grad_ocean:1548094428273446952>",
+    "antiabuse": "<a:a_antiabuse_grad_ocean:1548094431830220810>",
+    "limit": "<a:a_limit_grad_ocean:1548094436385357827>",
+    "rename": "<a:a_rename_grad_ocean:1548094440525004892>",
+    "info": "<a:a_info_grad_ocean:1548094444102750338>",
+    "claim": "<a:a_claim_grad_ocean:1548094448339128322>",
+    "extra": "<a:a_extra_grad_ocean:1548094452034183181>",
+    "wl": "<a:a_wl_grad_ocean:1548094456337666068>",
+    "bl": "<a:a_bl_grad_ocean:1548094459890245693>",
+    "permit": "<a:a_permit_grad_ocean:1548094463581098107>",
+    "reject": "<a:a_reject_grad_ocean:1548094467137871992>",
+    "music": "<a:a_music_grad_ocean:1548094484758138992>",
+    "activity": "<a:a_activity_grad_ocean:1548094488604311633>",
+    "mute": "<a:a_mute_grad_ocean:1548094470745227336>",
+    "deafen": "<a:a_deafen_grad_ocean:1548094474167517284>",
+    "tempreject": "<a:a_tempreject_grad_ocean:1548094477804240916>",
+    "randomreject": "<a:a_randomreject_grad_ocean:1548094481302159360>"
+  },
+  "#435d75": {
+    "lock": "<a:a_lock_grad_ocean:1548094416542240838>",
+    "unlock": "<a:a_unlock_grad_ocean:1548094420899864636>",
+    "hide": "<a:a_hide_grad_ocean:1548094424561754132>",
+    "unhide": "<a:a_unhide_grad_ocean:1548094428273446952>",
+    "antiabuse": "<a:a_antiabuse_grad_ocean:1548094431830220810>",
+    "limit": "<a:a_limit_grad_ocean:1548094436385357827>",
+    "rename": "<a:a_rename_grad_ocean:1548094440525004892>",
+    "info": "<a:a_info_grad_ocean:1548094444102750338>",
+    "claim": "<a:a_claim_grad_ocean:1548094448339128322>",
+    "extra": "<a:a_extra_grad_ocean:1548094452034183181>",
+    "wl": "<a:a_wl_grad_ocean:1548094456337666068>",
+    "bl": "<a:a_bl_grad_ocean:1548094459890245693>",
+    "permit": "<a:a_permit_grad_ocean:1548094463581098107>",
+    "reject": "<a:a_reject_grad_ocean:1548094467137871992>",
+    "music": "<a:a_music_grad_ocean:1548094484758138992>",
+    "activity": "<a:a_activity_grad_ocean:1548094488604311633>",
+    "mute": "<a:a_mute_grad_ocean:1548094470745227336>",
+    "deafen": "<a:a_deafen_grad_ocean:1548094474167517284>",
+    "tempreject": "<a:a_tempreject_grad_ocean:1548094477804240916>",
+    "randomreject": "<a:a_randomreject_grad_ocean:1548094481302159360>"
+  },
+  "#e0b6b2": {
+    "lock": "<a:a_lock_grad_velvet:1548094498477703169>",
+    "unlock": "<a:a_unlock_grad_velvet:1548094502646980722>",
+    "hide": "<a:a_hide_grad_velvet:1548094506677837944>",
+    "unhide": "<a:a_unhide_grad_velvet:1548094510834126930>",
+    "antiabuse": "<a:a_antiabuse_grad_velvet:1548094514605064253>",
+    "limit": "<a:a_limit_grad_velvet:1548094518643916842>",
+    "rename": "<a:a_rename_grad_velvet:1548094522658132039>",
+    "info": "<a:a_info_grad_velvet:1548094526017511500>",
+    "claim": "<a:a_claim_grad_velvet:1548094529905631323>",
+    "extra": "<a:a_extra_grad_velvet:1548094533663985714>",
+    "wl": "<a:a_wl_grad_velvet:1548094536797134920>",
+    "bl": "<a:a_bl_grad_velvet:1548094541083443242>",
+    "permit": "<a:a_permit_grad_velvet:1548094545898774670>",
+    "reject": "<a:a_reject_grad_velvet:1548094550227296308>",
+    "music": "<a:a_music_grad_velvet:1548094573517996192>",
+    "activity": "<a:a_activity_grad_velvet:1548094578207232030>",
+    "mute": "<a:a_mute_grad_velvet:1548094555046412318>",
+    "deafen": "<a:a_deafen_grad_velvet:1548094561514164284>",
+    "tempreject": "<a:a_tempreject_grad_velvet:1548094566509449336>",
+    "randomreject": "<a:a_randomreject_grad_velvet:1548094569923481713>"
+  },
+  "#733333": {
+    "lock": "<a:a_lock_grad_velvet:1548094498477703169>",
+    "unlock": "<a:a_unlock_grad_velvet:1548094502646980722>",
+    "hide": "<a:a_hide_grad_velvet:1548094506677837944>",
+    "unhide": "<a:a_unhide_grad_velvet:1548094510834126930>",
+    "antiabuse": "<a:a_antiabuse_grad_velvet:1548094514605064253>",
+    "limit": "<a:a_limit_grad_velvet:1548094518643916842>",
+    "rename": "<a:a_rename_grad_velvet:1548094522658132039>",
+    "info": "<a:a_info_grad_velvet:1548094526017511500>",
+    "claim": "<a:a_claim_grad_velvet:1548094529905631323>",
+    "extra": "<a:a_extra_grad_velvet:1548094533663985714>",
+    "wl": "<a:a_wl_grad_velvet:1548094536797134920>",
+    "bl": "<a:a_bl_grad_velvet:1548094541083443242>",
+    "permit": "<a:a_permit_grad_velvet:1548094545898774670>",
+    "reject": "<a:a_reject_grad_velvet:1548094550227296308>",
+    "music": "<a:a_music_grad_velvet:1548094573517996192>",
+    "activity": "<a:a_activity_grad_velvet:1548094578207232030>",
+    "mute": "<a:a_mute_grad_velvet:1548094555046412318>",
+    "deafen": "<a:a_deafen_grad_velvet:1548094561514164284>",
+    "tempreject": "<a:a_tempreject_grad_velvet:1548094566509449336>",
+    "randomreject": "<a:a_randomreject_grad_velvet:1548094569923481713>"
+  },
+  "#c4c3ff": {
+    "lock": "<a:a_lock_grad_lavender:1548092490744201226>",
+    "unlock": "<a:a_unlock_grad_lavender:1548092498369577101>",
+    "hide": "<a:a_hide_grad_lavender:1548092505369612379>",
+    "unhide": "<a:a_unhide_grad_lavender:1548092514748334100>",
+    "antiabuse": "<a:a_antiabuse_grad_lavender:1548092521148719166>",
+    "limit": "<a:a_limit_grad_lavender:1548092527897350224>",
+    "rename": "<a:a_rename_grad_lavender:1548092534679408820>",
+    "info": "<a:a_info_grad_lavender:1548092542237675540>",
+    "claim": "<a:a_claim_grad_lavender:1548092549124722782>",
+    "extra": "<a:a_extra_grad_lavender:1548092557437833306>",
+    "wl": "<a:a_wl_grad_lavender:1548092564979191818>",
+    "bl": "<a:a_bl_grad_lavender:1548092574433017959>",
+    "permit": "<a:a_permit_grad_lavender:1548092581265539102>",
+    "reject": "<a:a_reject_grad_lavender:1548092587594874900>",
+    "music": "<a:a_music_grad_lavender:1548092625167581184>",
+    "activity": "<a:a_activity_grad_lavender:1548092634856161420>",
+    "mute": "<a:a_mute_grad_lavender:1548092595102552188>",
+    "deafen": "<a:a_deafen_grad_lavender:1548092604334346250>",
+    "tempreject": "<a:a_tempreject_grad_lavender:1548092611267395715>",
+    "randomreject": "<a:a_randomreject_grad_lavender:1548092618666414120>"
+  },
+  "#52528c": {
+    "lock": "<a:a_lock_grad_lavender:1548092490744201226>",
+    "unlock": "<a:a_unlock_grad_lavender:1548092498369577101>",
+    "hide": "<a:a_hide_grad_lavender:1548092505369612379>",
+    "unhide": "<a:a_unhide_grad_lavender:1548092514748334100>",
+    "antiabuse": "<a:a_antiabuse_grad_lavender:1548092521148719166>",
+    "limit": "<a:a_limit_grad_lavender:1548092527897350224>",
+    "rename": "<a:a_rename_grad_lavender:1548092534679408820>",
+    "info": "<a:a_info_grad_lavender:1548092542237675540>",
+    "claim": "<a:a_claim_grad_lavender:1548092549124722782>",
+    "extra": "<a:a_extra_grad_lavender:1548092557437833306>",
+    "wl": "<a:a_wl_grad_lavender:1548092564979191818>",
+    "bl": "<a:a_bl_grad_lavender:1548092574433017959>",
+    "permit": "<a:a_permit_grad_lavender:1548092581265539102>",
+    "reject": "<a:a_reject_grad_lavender:1548092587594874900>",
+    "music": "<a:a_music_grad_lavender:1548092625167581184>",
+    "activity": "<a:a_activity_grad_lavender:1548092634856161420>",
+    "mute": "<a:a_mute_grad_lavender:1548092595102552188>",
+    "deafen": "<a:a_deafen_grad_lavender:1548092604334346250>",
+    "tempreject": "<a:a_tempreject_grad_lavender:1548092611267395715>",
+    "randomreject": "<a:a_randomreject_grad_lavender:1548092618666414120>"
+  },
   "#000000": {
     "lock": "<a:a_lock_black:1546856369582383144>",
     "unlock": "<a:a_unlock_black:1546856371725541426>",
@@ -412,12 +589,16 @@ export class ThemeManager {
           this.guildColorCache.set(rec.guildId, rec.embedColor as ColorResolvable);
         }
       }
-    } catch {}
+    } catch (err) {
+      FastLogger.error("Failed to preload guild themes", err);
+    }
   }
 
+  public static readonly DEFAULT_THEME_COLOR: ColorResolvable = "#000000";
+
   public static getColorSync(guildId?: string | null): ColorResolvable | null {
-    if (!guildId) return null;
-    return this.guildColorCache.get(guildId) ?? null;
+    if (!guildId) return this.DEFAULT_THEME_COLOR;
+    return this.guildColorCache.get(guildId) ?? this.DEFAULT_THEME_COLOR;
   }
 
   public static getThemeEmoji(guildId: string | undefined | null, action: string): string {
@@ -455,14 +636,14 @@ export class ThemeManager {
   }
 
   public static async getColor(guildId?: string | null): Promise<ColorResolvable | null> {
-    if (!guildId) return null;
+    if (!guildId) return this.DEFAULT_THEME_COLOR;
 
     if (this.guildColorCache.has(guildId)) {
-      return this.guildColorCache.get(guildId) ?? null;
+      return this.guildColorCache.get(guildId) ?? this.DEFAULT_THEME_COLOR;
     }
 
     const record = await GuildThemeModel.findOne({ guildId }).maxTimeMS(1000).lean().catch(() => null);
-    const color = record?.embedColor ? (record.embedColor as ColorResolvable) : null;
+    const color = record?.embedColor ? (record.embedColor as ColorResolvable) : this.DEFAULT_THEME_COLOR;
     this.guildColorCache.set(guildId, color);
     return color;
   }

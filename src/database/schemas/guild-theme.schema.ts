@@ -6,7 +6,7 @@ export interface IGuildTheme {
 }
 
 const GuildThemeSchema = new Schema<IGuildTheme>({
-  guildId: { type: String, required: true, unique: true, index: true },
+  guildId: { type: String, required: true, unique: true },
   embedColor: { type: String, default: "#5865F2" }
 });
 

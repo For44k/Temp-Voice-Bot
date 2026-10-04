@@ -10,20 +10,23 @@ import {
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
   StringSelectMenuOptionBuilder,
-  resolveColor
+  resolveColor,
+  ComponentEmojiResolvable
 } from "discord.js";
 import { ThemeManager } from "../../../core/config/theme";
+import { SystemEmojis } from "../../../core/config/assets.config";
+import { V2Payload } from "../../../shared/types/v2.types";
 
 const HELP_BANNER_URL = "https://i.postimg.cc/TPPBHR6c/image.jpg";
 const COMMANDS_PER_PAGE = 6;
-const PREV_EMOJI = "<a:prev:1546983170048532511>";
-const NEXT_EMOJI = "<a:next:1546983173769142392>";
-const MAIN_MENU_EMOJI = "<a:kuromisleeping:1546859789223723008>";
+const PREV_EMOJI = SystemEmojis.PREV;
+const NEXT_EMOJI = SystemEmojis.NEXT;
+const MAIN_MENU_EMOJI = SystemEmojis.KUROMI_SLEEP;
 
-const parseEmoji = (emojiStr: string) => {
+const parseEmoji = (emojiStr: string): ComponentEmojiResolvable | undefined => {
   if (!emojiStr) return undefined;
   const match = emojiStr.match(/<a?:(\w+):(\d+)>/);
-  if (match) {
+  if (match && match[1] && match[2]) {
     return { name: match[1], id: match[2], animated: emojiStr.startsWith("<a:") };
   }
   return emojiStr;
@@ -119,7 +122,8 @@ export const _CATEGORIES: Category[] = [
     description: "Administrator configuration commands",
     commands: [
       { name: "setup", description: "Open One Tap creation setup interface" },
-      { name: "", description: "Customize bot avatar, banner, bio & panel" },
+      { name: "setbot", description: "Customize bot avatar, banner, bio & panel" },
+      { name: "ping", description: "Check bot respond speed, API latency & database speed" },
       { name: "join", usage: "@bot <channel_id>", description: "Make bot join voice 24/7 persistently" },
       { name: "theme", usage: "<#hex>", description: "Set server custom accent theme color" },
       { name: "panelimage", usage: "<url|file>", description: "Set custom banner image for panels" },
@@ -140,7 +144,7 @@ export class HelpBuilder {
     categoryId: string = "home",
     pageIndex: number = 0,
     prefix: string = ".v "
-  ): Promise<any> {
+  ): Promise<V2Payload> {
     const isHome = categoryId === "home";
     const category = _CATEGORIES.find((c) => c.id === categoryId);
 
@@ -214,10 +218,32 @@ export class HelpBuilder {
       const start = currentPage * COMMANDS_PER_PAGE;
       const currentCommands = category.commands.slice(start, start + COMMANDS_PER_PAGE);
 
-      const commandsList = currentCommands.map(cmd =>
-        `**__\`${prefix}${cmd.name}\`__** ${cmd.usage ? `\`${cmd.usage}\`` : ""}${cmd.aliases?.length ? ` \`(${cmd.aliases.map(a => `${prefix}${a}`).join(", ")})\`` : ""}\n` +
+      const commandsList = currentCommands.map((cmd) =>
+        `**__\`${prefix}${cmd.name}\`__** ${cmd.usage ? `\`${cmd.usage}\`` : ""}${cmd.aliases?.length ? ` \`(${cmd.aliases.map((a) => `${prefix}${a}`).join(", ")})\`` : ""}\n` +
         `> *__${cmd.description || "No description provided."}__*`
       ).join("\n\n");
+
+      const prevEmojiResolvable = parseEmoji(PREV_EMOJI);
+      const nextEmojiResolvable = parseEmoji(NEXT_EMOJI);
+      const homeEmojiResolvable = parseEmoji(MAIN_MENU_EMOJI);
+
+      const prevButton = new ButtonBuilder()
+        .setCustomId(`help:page:${category.id}:${currentPage - 1}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentPage === 0);
+      if (prevEmojiResolvable) prevButton.setEmoji(prevEmojiResolvable);
+
+      const nextButton = new ButtonBuilder()
+        .setCustomId(`help:page:${category.id}:${currentPage + 1}`)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentPage >= totalPages - 1);
+      if (nextEmojiResolvable) nextButton.setEmoji(nextEmojiResolvable);
+
+      const homeButton = new ButtonBuilder()
+        .setCustomId("help:home")
+        .setLabel("Main Menu")
+        .setStyle(ButtonStyle.Secondary);
+      if (homeEmojiResolvable) homeButton.setEmoji(homeEmojiResolvable);
 
       container
         .addTextDisplayComponents(
@@ -233,21 +259,9 @@ export class HelpBuilder {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addActionRowComponents(
           new ActionRowBuilder<ButtonBuilder>().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`help:page:${category.id}:${currentPage - 1}`)
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji(parseEmoji(PREV_EMOJI) as any)
-              .setDisabled(currentPage === 0),
-            new ButtonBuilder()
-              .setCustomId(`help:page:${category.id}:${currentPage + 1}`)
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji(parseEmoji(NEXT_EMOJI) as any)
-              .setDisabled(currentPage >= totalPages - 1),
-            new ButtonBuilder()
-              .setCustomId("help:home")
-              .setLabel("Main Menu")
-              .setStyle(ButtonStyle.Secondary)
-              .setEmoji(parseEmoji(MAIN_MENU_EMOJI) as any)
+            prevButton,
+            nextButton,
+            homeButton
           )
         )
         .addActionRowComponents(
@@ -262,8 +276,9 @@ export class HelpBuilder {
     }
 
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
-      components: [container] as any
+      flags: MessageFlags.IsComponentsV2,
+      components: [container],
+      allowedMentions: { parse: [] }
     };
   }
 
@@ -271,7 +286,7 @@ export class HelpBuilder {
     guildId: string | null | undefined,
     query: string,
     prefix: string = ".v "
-  ): Promise<any> {
+  ): Promise<V2Payload> {
     const searchQuery = query.toLowerCase().trim();
     const color = await ThemeManager.getColor(guildId);
     const resolvedColor = color ? resolveColor(color) : null;
@@ -324,8 +339,9 @@ export class HelpBuilder {
     }
 
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
-      components: [container] as any
+      flags: MessageFlags.IsComponentsV2,
+      components: [container],
+      allowedMentions: { parse: [] }
     };
   }
 }

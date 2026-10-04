@@ -1,49 +1,44 @@
-import { GuildMember, VoiceChannel, ContainerBuilder, SeparatorBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags, resolveColor } from "discord.js";
+import {
+  GuildMember,
+  VoiceChannel,
+  ContainerBuilder,
+  SeparatorBuilder,
+  TextDisplayBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  MessageFlags,
+  resolveColor,
+  Message
+} from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { Usages } from "../../../../shared/embeds/usages";
 import { ThemeManager } from "../../../../core/config/theme";
+import { V2Payload } from "../../../../shared/types/v2.types";
 
-export async function buildChannelInfoPayload(channel: VoiceChannel, guildId: string): Promise<any> {
+export async function buildChannelInfoPayload(channel: VoiceChannel, guildId: string): Promise<V2Payload> {
   const session = VoiceMemoryStore.get(channel.id);
   const color = await ThemeManager.getColor(guildId);
+  const infoEmoji = Usages.getActionEmoji("info", guildId);
 
   const ownerId = session ? session.ownerId : channel.guild.ownerId;
-  const ownerMember = await channel.guild.members.fetch(ownerId).catch(() => null);
-  let ownerUser = ownerMember?.user;
-  if (!ownerUser) {
-    ownerUser = await channel.client.users.fetch(ownerId).catch(() => null) ?? undefined;
-  }
+  const channelName = channel.name;
+  const limitText = channel.userLimit === 0 ? "Unlimited" : channel.userLimit.toString();
 
-  let bannerUrl: string | null = null;
-  if (ownerUser) {
-    try {
-      const fullUser = await channel.client.users.fetch(ownerId, { force: true });
-      bannerUrl = fullUser.bannerURL({ size: 1024 }) || null;
-    } catch { }
-  }
+  const createdTimestamp = channel.createdTimestamp || Date.now();
+  const uptimeSeconds = Math.max(0, Math.floor((Date.now() - createdTimestamp) / 1000));
+  const activeForText = Usages.formatDuration(uptimeSeconds);
 
-  const managersList = session && session.coOwners.size > 0
-    ? Array.from(session.coOwners).map((id) => `<@${id}>`).join(" ")
-    : "`None`";
+  const coOwnersCount = session?.coOwners ? session.coOwners.size : 0;
+  const isHiddenText = session?.isHidden ? "Yes" : "No";
+  const isLockedText = session?.isLocked ? "Yes" : "No";
 
-  const isLockedText = session?.isLocked ? "`Yes`" : "`No`";
-  const isHiddenText = session?.isHidden ? "`Yes`" : "`No`";
-
-  let permittedCount = 0;
-  let rejectedCount = 0;
-
-  for (const overwrite of channel.permissionOverwrites.cache.values()) {
-    if (overwrite.id === channel.guild.roles.everyone.id) continue;
-
-    if (overwrite.type === 1) {
-      if (overwrite.allow.has("Connect")) {
-        permittedCount++;
-      } else if (overwrite.deny.has("Connect")) {
-        rejectedCount++;
-      }
-    }
-  }
+  const block1 = `- **Owner** : <@${ownerId}>\n- **Name** : ${channelName}\n- **Limit** : \`${limitText}\``;
+  const block2 = `- **Active For** : \`${activeForText}\`\n- **Co-Owners** : \`${coOwnersCount}/10\`\n- **Hidden** : \`${isHiddenText}\`\n- **Locked** : \`${isLockedText}\``;
+  const block3 = `-# Enjoy For You Channel`;
 
   const accentColor = color ? resolveColor(color) : null;
   const container = new ContainerBuilder();
@@ -51,63 +46,42 @@ export async function buildChannelInfoPayload(channel: VoiceChannel, guildId: st
 
   container
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# <a:cuteghost:1546983190978101398> __Channel Informations__`)
+      new TextDisplayBuilder().setContent(`## ${infoEmoji} Channel Info`)
     )
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-
-  if (bannerUrl) {
-    container
-      .addMediaGalleryComponents(
-        new MediaGalleryBuilder().addItems(
-          new MediaGalleryItemBuilder().setURL(bannerUrl)
-        )
-      )
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
-  }
-
-  const contentText =
-    `> - __Channel Name :__ \`${channel.name}\`\n` +
-    `> - __Room Owner :__ <@${ownerId}>\n` +
-    `> - __Managers :__ ${managersList}\n` +
-    `> - __Members :__ \`${channel.members.size}/${channel.userLimit || "∞"}\`\n` +
-    `> - __Locked :__ ${isLockedText}\n` +
-    `> - __Hidden :__ ${isHiddenText}\n` +
-    `> - __Rejected :__ \`${rejectedCount}\`\n` +
-    `> - __Permited :__ \`${permittedCount}\`\n` +
-    `> ### - **__Click Button to see All Membres In channel__**`;
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`btn_see_members:${channel.id}`)
-      .setLabel("See Membres")
-      .setStyle(ButtonStyle.Secondary)
-  );
-
-  container
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(contentText))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-    .addActionRowComponents(row);
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(block1)
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(block2)
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(block3)
+    );
 
   return {
-    flags: MessageFlags.IsComponentsV2 as any,
-    components: [container] as any
+    flags: MessageFlags.IsComponentsV2,
+    components: [container]
   };
 }
 
 export const statsCommand: ICommand = {
   name: "info",
   prefixAliases: ["info", "channelinfo"],
-  async executePrefix(message: any): Promise<void> {
-    const member = message.member as GuildMember;
-    const channel = member.voice.channel as VoiceChannel | null;
+  async executePrefix(message: Message): Promise<void> {
+    const member = message.member;
+    const channel = member instanceof GuildMember ? (member.voice.channel as VoiceChannel | null) : null;
     const guildId = message.guildId;
+    if (!guildId) return;
 
     if (!channel) {
       await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
       return;
     }
 
-    const payload = await buildChannelInfoPayload(channel, guildId!);
+    const payload = await buildChannelInfoPayload(channel, guildId);
     await message.reply({ ...payload, allowedMentions: { parse: [] } });
   }
 };

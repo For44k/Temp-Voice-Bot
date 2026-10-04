@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceSettingsService } from "../../services/voice-settings.service";
 import { Usages } from "../../../../shared/embeds/usages";
 
 export const limitCommand: ICommand = {
@@ -11,38 +11,45 @@ export const limitCommand: ICommand = {
     const channel = member.voice.channel as VoiceChannel | null;
     const guildId = message.guildId;
 
-    if (!channel) {
-      await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
-      return;
+    const result = await VoiceSettingsService.setLimit(channel, member, args[0]);
+
+    switch (result.status) {
+      case "not_in_voice": {
+        await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "not_manager": {
+        await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "invalid_limit": {
+        await message.reply({
+          ...(await Usages.invalidCommand(guildId, "`.v limit <0-99>`")),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "same_limit": {
+        const embed = await Usages.alreadyAction(guildId, `The channel limit is already set to \`${result.limit}\``);
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
+      case "failed": {
+        await message.reply({
+          ...(await Usages.impossible(guildId, "**__Failed to update user limit on Discord :__**")),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "updated": {
+        const embed = await Usages.executedAction(
+          guildId,
+          "Limit",
+          `Voice channel limit updated to : \`${result.limit}\``
+        );
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
     }
-
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
-      await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
-      return;
-    }
-
-    const amount = parseInt(args[0], 10);
-    if (isNaN(amount) || amount < 0 || amount > 99) {
-      await message.reply({
-        ...(await Usages.invalidCommand(guildId, "`.v limit <0-99>`")),
-        allowedMentions: { parse: [] }
-      });
-      return;
-    }
-
-    if (channel.userLimit === amount) {
-      const embed = await Usages.alreadyAction(guildId, `The channel limit is already set to \`${amount}\``);
-      await message.reply({ ...embed, allowedMentions: { parse: [] } });
-      return;
-    }
-
-    await channel.setUserLimit(amount);
-
-    const embed = await Usages.executedAction(
-      guildId,
-      "Limit",
-      `**__Channel Limit has been changed to__** **\`${amount}\`**`
-    );
-    await message.reply({ ...embed, allowedMentions: { parse: [] } });
   }
 };

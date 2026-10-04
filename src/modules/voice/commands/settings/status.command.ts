@@ -1,80 +1,65 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceSettingsService } from "../../services/voice-settings.service";
 import { Usages } from "../../../../shared/embeds/usages";
-import { ActionLogger } from "../../../../core/logger/action.logger";
 
 export const statusCommand: ICommand = {
   name: "status",
   prefixAliases: ["status", "vstatus", "setstatus"],
   async executePrefix(message: Message, args: string[]): Promise<void> {
-    const member = message.member as GuildMember;
+    const member = message.member;
+    if (!member || !(member instanceof GuildMember)) return;
     const channel = member.voice.channel as VoiceChannel | null;
     const guildId = message.guildId;
-
-    if (!channel) {
-      await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
-      return;
-    }
-
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
-      await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
-      return;
-    }
+    if (!guildId) return;
 
     const newStatus = args.join(" ").trim();
-    if (!newStatus) {
-      
-      try {
-        await message.client.rest.put(
-          `/channels/${channel.id}/voice-status`,
-          { body: { status: "" } }
-        );
+    const result = await VoiceSettingsService.setStatus(channel, member, newStatus);
+
+    switch (result.status) {
+      case "not_in_voice": {
+        await message.reply({ ...(await Usages.notInVoice(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "not_manager": {
+        await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
+        return;
+      }
+      case "invalid_status": {
+        await message.reply({
+          ...(await Usages.invalidInputWarning(guildId)),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+      case "same_status": {
+        const embed = await Usages.alreadyAction(guildId, `Voice status is already set to \`${result.textStatus}\``);
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
+      case "cleared": {
         const embed = await Usages.executedAction(
           guildId,
           "Voice Status",
           "Voice channel status has been cleared."
         );
         await message.reply({ ...embed, allowedMentions: { parse: [] } });
-      } catch (err: any) {
-        const embed = await Usages.impossible(guildId, `Failed to clear voice status: ${err.message}`);
-        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
       }
-      return;
-    }
-
-    const sanitized = Usages.sanitize(newStatus).slice(0, 500);
-    if (!Usages.isValidChannelName(sanitized)) {
-      await message.reply({
-        ...(await Usages.invalidInputWarning(guildId)),
-        allowedMentions: { parse: [] }
-      });
-      return;
-    }
-
-    try {
-      await message.client.rest.put(
-        `/channels/${channel.id}/voice-status`,
-        { body: { status: sanitized } }
-      );
-
-      ActionLogger.logAction({
-        guildId: guildId!,
-        executorId: member.id,
-        action: "Voice Status Changed",
-        channelName: channel.name,
-        details: sanitized
-      }).catch(() => {});
-
-      const embed = await Usages.executedAction(
-        guildId,
-        "Voice Status",
-        `**__Voice status updated to :__ **\`${sanitized}\`**`
-      );
-      await message.reply({ ...embed, allowedMentions: { parse: [] } });
-    } catch (err: any) {
-      const embed = await Usages.impossible(guildId, `Failed to set voice status: ${err.message}`);
-      await message.reply({ ...embed, allowedMentions: { parse: [] } });
+      case "failed": {
+        const embed = await Usages.impossible(guildId, "**__Failed to update voice status on Discord :__**");
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
+      case "updated": {
+        const embed = await Usages.executedAction(
+          guildId,
+          "Voice Status",
+          `Voice status updated to : \`${result.textStatus}\``
+        );
+        await message.reply({ ...embed, allowedMentions: { parse: [] } });
+        return;
+      }
     }
   }
 };

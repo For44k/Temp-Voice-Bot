@@ -18,27 +18,27 @@ export class Replies {
     const parts = content ? [title, content] : [title];
     const container = createMultiContainer(parts, accentHex);
     return {
-      flags: MessageFlags.IsComponentsV2 as unknown as number,
+      flags: MessageFlags.IsComponentsV2,
       components: [container],
       allowedMentions: { parse: [] }
     };
   }
 
   public static async create(guildId: string | null | undefined, title: string, description?: string): Promise<V2Payload> {
-    const header = `# <a:pink_Heartjump:1546859773721444382> __${title}__`;
-    const body = description ? `- <a:pink_Heartjump:1546859773721444382> __${description}__` : undefined;
+    const header = `## ${Usages.getActionEmoji("info", guildId)} ${title}`;
+    const body = description ? `- __${description}__  ⁘` : undefined;
     return this.build(guildId, header, body);
   }
 
   public static async error(guildId: string | null | undefined, title: string, description?: string): Promise<V2Payload> {
-    const header = `# <a:gh1y1ne:1546859779333292103> __${title}__`;
-    const body = description ? `- <a:pink_Heartjump:1546859773721444382> __${description}__` : undefined;
+    const header = `## ${Usages.getActionEmoji("reject", guildId)} ${title}`;
+    const body = description ? `- __${description}__  ⁘` : undefined;
     return this.build(guildId, header, body);
   }
 
   public static async success(guildId: string | null | undefined, title: string, description?: string): Promise<V2Payload> {
-    const header = `# ⌇ <a:pink_Heartjump:1546859773721444382> ⌇ __System Executed__`;
-    const body = description ? `- <a:pink_Heartjump:1546859773721444382> __${description}__` : undefined;
+    const header = `## ${Usages.getActionEmoji("info", guildId)} ${title}`;
+    const body = description ? `- __${description}__  ⁘` : undefined;
     return this.build(guildId, header, body);
   }
 
@@ -51,7 +51,7 @@ export class Replies {
   }
 
   public static async notOwner(guildId?: string | null): Promise<V2Payload> {
-    return Usages.impossible(guildId, "Only the channel owner can perform this action");
+    return Usages.impossible(guildId, "Only the owner or co-owners can use this");
   }
 }
 

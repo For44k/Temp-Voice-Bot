@@ -18,13 +18,15 @@ export const trustedCommand: ICommand = {
       const prefs = await PreferencesStore.get(guildId, userId);
       if (prefs.trusted.size === 0) {
         await message.reply({
-          embeds: [await Replies.create(guildId, "Your Trusted Managers", "You have no trusted managers set.")]
+          ...(await Replies.create(guildId, "Your Trusted Managers", "You have no trusted managers set.")),
+          allowedMentions: { parse: [] }
         });
         return;
       }
       const list = Array.from(prefs.trusted).map((id) => `• <@${id}>`).join("\n");
       await message.reply({
-        embeds: [await Replies.create(guildId, `Your Trusted Managers (${prefs.trusted.size})`, list)]
+        ...(await Replies.create(guildId, `Your Trusted Managers (${prefs.trusted.size})`, list)),
+        allowedMentions: { parse: [] }
       });
       return;
     }
@@ -32,7 +34,8 @@ export const trustedCommand: ICommand = {
     const targets = await extractTargetMembers(message, args.slice(1));
     if (targets.length === 0) {
       await message.reply({
-        embeds: [await Replies.error(guildId, "Syntax Error", "Usage:\n• `.v trusted add @user`\n• `.v trusted remove @user`\n• `.v trusted list`")]
+        ...(await Replies.error(guildId, "Syntax Error", "Usage:\n• `.v trusted add @user`\n• `.v trusted remove @user`\n• `.v trusted list`")),
+        allowedMentions: { parse: [] }
       });
       return;
     }
@@ -48,19 +51,19 @@ export const trustedCommand: ICommand = {
       }
       if (added.length === 0) {
         await message.reply({
-          embeds: [await Replies.error(guildId, "Limit Reached", "You can only have a maximum of 3 managers.")]
+          ...(await Replies.error(guildId, "Limit Reached", "You can only have a maximum of 3 managers.")),
+          allowedMentions: { parse: [] }
         });
         return;
       }
       const mentions = added.map((id) => `<@${id}>`).join(", ");
       await message.reply({
-        embeds: [
-          await Replies.success(
-            guildId,
-            "Trusted Managers Added",
-            `Added as trusted managers for your rooms: ${mentions}\n(They can rename and reject members, but cannot touch you or each other).`
-          )
-        ]
+        ...(await Replies.success(
+          guildId,
+          "Trusted Managers Added",
+          `Added as trusted managers for your rooms: ${mentions}\n(They can rename and reject members, but cannot touch you or each other).`
+        )),
+        allowedMentions: { parse: [] }
       });
       return;
     }
@@ -71,7 +74,8 @@ export const trustedCommand: ICommand = {
       }
       const mentions = targets.map((t) => `<@${t.id}>`).join(", ");
       await message.reply({
-        embeds: [await Replies.success(guildId, "Trusted Managers Removed", `Removed from your trusted managers: ${mentions}`)]
+        ...(await Replies.success(guildId, "Trusted Managers Removed", `Removed from your trusted managers: ${mentions}`)),
+        allowedMentions: { parse: [] }
       });
       return;
     }

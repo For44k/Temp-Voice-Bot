@@ -6,6 +6,11 @@ import { UserPreferencesModel } from "./schemas/user-preferences.schema";
 import { GuildConfigModel } from "./schemas/guild-config.schema";
 import { UserProfileModel } from "./schemas/user-profile.schema";
 import { GlobalBlacklistModel } from "./schemas/global-blacklist.schema";
+import { BotVoicePersistModel } from "./schemas/bot-voice-persist.schema";
+import { BotDeveloperModel } from "./schemas/bot-developer.schema";
+import { GlobalMusicBotModel } from "./schemas/global-music-bot.schema";
+import { GuildThemeModel } from "./schemas/guild-theme.schema";
+import { UserAliasModel } from "./schemas/user-alias.schema";
 
 export async function initDatabase(): Promise<void> {
   try {
@@ -22,7 +27,12 @@ export async function initDatabase(): Promise<void> {
       UserPreferencesModel.syncIndexes(),
       GuildConfigModel.syncIndexes(),
       UserProfileModel.syncIndexes(),
-      GlobalBlacklistModel.syncIndexes()
+      GlobalBlacklistModel.syncIndexes(),
+      BotVoicePersistModel.syncIndexes(),
+      BotDeveloperModel.syncIndexes(),
+      GlobalMusicBotModel.syncIndexes(),
+      GuildThemeModel.syncIndexes(),
+      UserAliasModel.syncIndexes()
     ]);
   } catch (err) {
     FastLogger.error("Database connection failed", err);

@@ -9,23 +9,21 @@ export interface CachedPreferences {
 
 export class PreferencesStore {
   private static cache: Map<string, CachedPreferences> = new Map();
+  private static readonly MAX_ENTRIES = 5000;
 
   private static makeKey(guildId: string, userId: string): string {
     return `${guildId}:${userId}`;
   }
 
+  private static setBounded(key: string, value: CachedPreferences): void {
+    if (this.cache.size >= this.MAX_ENTRIES && !this.cache.has(key)) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+
   public static async preload(): Promise<void> {
-    try {
-      const records = await UserPreferencesModel.find().lean();
-      for (const record of records) {
-        const key = this.makeKey(record.guildId, record.userId);
-        this.cache.set(key, {
-          blacklist: new Set(record.blacklist || []),
-          trusted: new Set(record.trusted || []),
-          whitelist: new Set(record.whitelist || [])
-        });
-      }
-    } catch {}
   }
 
   public static getSync(guildId: string, userId: string): CachedPreferences {
@@ -37,16 +35,16 @@ export class PreferencesStore {
       trusted: new Set(),
       whitelist: new Set()
     };
-    this.cache.set(key, fallback);
+    this.setBounded(key, fallback);
     void this.fetchAsync(guildId, userId);
     return fallback;
   }
 
   private static async fetchAsync(guildId: string, userId: string): Promise<void> {
     try {
-      const record = await UserPreferencesModel.findOne({ guildId, userId }).maxTimeMS(500).lean();
+      const record = await UserPreferencesModel.findOne({ guildId, userId }).maxTimeMS(1000).lean();
       if (record) {
-        this.cache.set(this.makeKey(guildId, userId), {
+        this.setBounded(this.makeKey(guildId, userId), {
           blacklist: new Set(record.blacklist || []),
           trusted: new Set(record.trusted || []),
           whitelist: new Set(record.whitelist || [])
@@ -63,21 +61,22 @@ export class PreferencesStore {
     if (cached) return cached;
 
     try {
-      const record = await UserPreferencesModel.findOne({ guildId, userId }).maxTimeMS(500).lean();
+      const record = await UserPreferencesModel.findOne({ guildId, userId }).maxTimeMS(1000).lean();
       const data: CachedPreferences = {
         blacklist: new Set(record?.blacklist || []),
         trusted: new Set(record?.trusted || []),
         whitelist: new Set(record?.whitelist || [])
       };
-      this.cache.set(key, data);
+      this.setBounded(key, data);
       return data;
-    } catch {
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.get failed", { guildId, userId, err });
       const fallback: CachedPreferences = {
         blacklist: new Set(),
         trusted: new Set(),
         whitelist: new Set()
       };
-      this.cache.set(key, fallback);
+      this.setBounded(key, fallback);
       return fallback;
     }
   }
@@ -85,7 +84,7 @@ export class PreferencesStore {
   public static async addBlacklist(guildId: string, userId: string, targetId: string): Promise<void> {
     const prefs = await this.get(guildId, userId);
     prefs.blacklist.add(targetId);
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -93,7 +92,9 @@ export class PreferencesStore {
         { $addToSet: { blacklist: targetId } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.addBlacklist failed", { guildId, userId, targetId, err });
+    }
   }
 
   public static async removeBlacklist(guildId: string, userId: string, targetId: string): Promise<boolean> {
@@ -101,7 +102,7 @@ export class PreferencesStore {
     if (!prefs.blacklist.has(targetId)) return false;
 
     prefs.blacklist.delete(targetId);
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -109,7 +110,9 @@ export class PreferencesStore {
         { $pull: { blacklist: targetId } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.removeBlacklist failed", { guildId, userId, targetId, err });
+    }
 
     return true;
   }
@@ -117,7 +120,7 @@ export class PreferencesStore {
   public static async addTrusted(guildId: string, userId: string, targetId: string): Promise<void> {
     const prefs = await this.get(guildId, userId);
     prefs.trusted.add(targetId);
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -125,7 +128,9 @@ export class PreferencesStore {
         { $addToSet: { trusted: targetId } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.addTrusted failed", { guildId, userId, targetId, err });
+    }
   }
 
   public static async removeTrusted(guildId: string, userId: string, targetId: string): Promise<boolean> {
@@ -133,7 +138,7 @@ export class PreferencesStore {
     if (!prefs.trusted.has(targetId)) return false;
 
     prefs.trusted.delete(targetId);
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -141,7 +146,9 @@ export class PreferencesStore {
         { $pull: { trusted: targetId } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.removeTrusted failed", { guildId, userId, targetId, err });
+    }
 
     return true;
   }
@@ -149,7 +156,7 @@ export class PreferencesStore {
   public static async addWhitelist(guildId: string, userId: string, targetId: string): Promise<void> {
     const prefs = await this.get(guildId, userId);
     prefs.whitelist.add(targetId);
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -157,7 +164,9 @@ export class PreferencesStore {
         { $addToSet: { whitelist: targetId } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.addWhitelist failed", { guildId, userId, targetId, err });
+    }
   }
 
   public static async removeWhitelist(guildId: string, userId: string, targetId: string): Promise<boolean> {
@@ -165,7 +174,7 @@ export class PreferencesStore {
     if (!prefs.whitelist.has(targetId)) return false;
 
     prefs.whitelist.delete(targetId);
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -173,7 +182,9 @@ export class PreferencesStore {
         { $pull: { whitelist: targetId } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.removeWhitelist failed", { guildId, userId, targetId, err });
+    }
 
     return true;
   }
@@ -181,7 +192,7 @@ export class PreferencesStore {
   public static async clearBlacklist(guildId: string, userId: string): Promise<void> {
     const prefs = await this.get(guildId, userId);
     prefs.blacklist.clear();
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -189,13 +200,15 @@ export class PreferencesStore {
         { $set: { blacklist: [] } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.clearBlacklist failed", { guildId, userId, err });
+    }
   }
 
   public static async clearTrusted(guildId: string, userId: string): Promise<void> {
     const prefs = await this.get(guildId, userId);
     prefs.trusted.clear();
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -203,13 +216,15 @@ export class PreferencesStore {
         { $set: { trusted: [] } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.clearTrusted failed", { guildId, userId, err });
+    }
   }
 
   public static async clearWhitelist(guildId: string, userId: string): Promise<void> {
     const prefs = await this.get(guildId, userId);
     prefs.whitelist.clear();
-    this.cache.set(this.makeKey(guildId, userId), prefs);
+    this.setBounded(this.makeKey(guildId, userId), prefs);
 
     try {
       await UserPreferencesModel.updateOne(
@@ -217,6 +232,8 @@ export class PreferencesStore {
         { $set: { whitelist: [] } },
         { upsert: true }
       ).exec();
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("PreferencesStore.clearWhitelist failed", { guildId, userId, err });
+    }
   }
 }

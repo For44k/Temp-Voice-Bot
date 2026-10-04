@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoicePermissionsManager } from "../../services/voice-permission.service";
 import { Usages } from "../../../../shared/embeds/usages";
 import { extractTargetMembers } from "../../../../shared/utils/member-parser";
@@ -18,7 +18,7 @@ export const tunmuteCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }

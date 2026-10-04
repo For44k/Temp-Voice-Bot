@@ -10,11 +10,12 @@ export const panelimageCommand: ICommand = {
   name: "panelimage",
   prefixAliases: ["panelimage", "pimage", "setimage"],
   async executePrefix(message: Message, args: string[]): Promise<void> {
-    const guildId = message.guildId!;
+    const guildId = message.guildId;
+    if (!guildId) return;
 
     if (!message.member?.permissions.has(PermissionFlagsBits.Administrator)) {
       await message.reply({
-        ...(await Usages.impossible(guildId, "**__You need Administrator permissions to use this :__**")),
+        ...(await Usages.impossible(guildId, "You need Administrator permissions to use this")),
         allowedMentions: { parse: [] }
       });
       return;
@@ -28,12 +29,12 @@ export const panelimageCommand: ICommand = {
       if (cfg) {
         delete cfg.panelImageUrl;
       }
-      GuildMemoryStore["store"].delete(guildId);
+      GuildMemoryStore.purge(guildId);
 
       const embed = await Usages.executedAction(
         guildId,
         "Panel Image",
-        "**__Panel image has been removed :__** The voice panel will now show without a custom image."
+        "Panel image has been removed. The voice panel will now show without a custom image."
       );
       await message.reply({
         ...embed,
@@ -53,12 +54,14 @@ export const panelimageCommand: ICommand = {
       return;
     }
 
-    const imageUrl = attachment ? attachment.url : possibleUrl!;
+    const imageUrl = attachment ? attachment.url : possibleUrl;
+    if (!imageUrl) return;
+
     const processingMsg = await message.reply({
       ...(await Usages.executedAction(
         guildId,
         "Panel Image",
-        "**__Uploading your image to storage...__**"
+        "Uploading your image to storage..."
       )),
       allowedMentions: { parse: [] }
     });
@@ -92,9 +95,10 @@ export const panelimageCommand: ICommand = {
           "Panel image has been updated and is now active for voice panels in this server."
         )
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       await processingMsg.edit({
-        ...(await Usages.impossible(guildId, `**__Error uploading image :__** ${err.message}`)),
+        ...(await Usages.impossible(guildId, `Error uploading image: ${errorMessage}`)),
       });
     }
   }

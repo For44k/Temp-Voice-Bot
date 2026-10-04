@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoicePermissionsManager } from "../../services/voice-permission.service";
 import { Usages } from "../../../../shared/embeds/usages";
 import { extractTargetMembers } from "../../../../shared/utils/member-parser";
@@ -18,14 +18,14 @@ export const kickCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }
 
     const extracted = await extractTargetMembers(message, args);
     const targets = extracted.filter(
-      (m) => m.voice.channelId === channel.id && VoiceLifecycleService.canManageTarget(channel.id, member.id, m.id)
+      (m) => m.voice.channelId === channel.id && VoiceAuthService.canManageTarget(channel.id, member.id, m.id, message.guild)
     );
 
     if (targets.length === 0) {

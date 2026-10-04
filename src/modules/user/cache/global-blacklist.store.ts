@@ -1,4 +1,5 @@
 import { GlobalBlacklistModel } from "../../../database/schemas/global-blacklist.schema";
+import { FastLogger } from "../../../core/logger/logger";
 
 export class GlobalBlacklistStore {
   private static userBlacklist: Set<string> = new Set();
@@ -17,7 +18,9 @@ export class GlobalBlacklistStore {
         }
       }
       this.loaded = true;
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("GlobalBlacklistStore.preload failed", err);
+    }
   }
 
   public static isUserBlacklisted(userId: string): boolean {
@@ -30,16 +33,24 @@ export class GlobalBlacklistStore {
 
   public static async addUser(userId: string, reason?: string): Promise<void> {
     this.userBlacklist.add(userId);
-    await GlobalBlacklistModel.updateOne(
-      { targetId: userId },
-      { targetId: userId, type: "user", reason, addedAt: new Date() },
-      { upsert: true }
-    ).exec();
+    try {
+      await GlobalBlacklistModel.updateOne(
+        { targetId: userId },
+        { targetId: userId, type: "user", reason, addedAt: new Date() },
+        { upsert: true }
+      ).exec();
+    } catch (err: unknown) {
+      FastLogger.error("GlobalBlacklistStore.addUser failed", { userId, reason, err });
+    }
   }
 
   public static async removeUser(userId: string): Promise<void> {
     this.userBlacklist.delete(userId);
-    await GlobalBlacklistModel.deleteOne({ targetId: userId, type: "user" }).exec();
+    try {
+      await GlobalBlacklistModel.deleteOne({ targetId: userId, type: "user" }).exec();
+    } catch (err: unknown) {
+      FastLogger.error("GlobalBlacklistStore.removeUser failed", { userId, err });
+    }
   }
 
   public static getUserBlacklist(): string[] {
@@ -48,16 +59,24 @@ export class GlobalBlacklistStore {
 
   public static async addServer(serverId: string, reason?: string): Promise<void> {
     this.serverBlacklist.add(serverId);
-    await GlobalBlacklistModel.updateOne(
-      { targetId: serverId },
-      { targetId: serverId, type: "server", reason, addedAt: new Date() },
-      { upsert: true }
-    ).exec();
+    try {
+      await GlobalBlacklistModel.updateOne(
+        { targetId: serverId },
+        { targetId: serverId, type: "server", reason, addedAt: new Date() },
+        { upsert: true }
+      ).exec();
+    } catch (err: unknown) {
+      FastLogger.error("GlobalBlacklistStore.addServer failed", { serverId, reason, err });
+    }
   }
 
   public static async removeServer(serverId: string): Promise<void> {
     this.serverBlacklist.delete(serverId);
-    await GlobalBlacklistModel.deleteOne({ targetId: serverId, type: "server" }).exec();
+    try {
+      await GlobalBlacklistModel.deleteOne({ targetId: serverId, type: "server" }).exec();
+    } catch (err: unknown) {
+      FastLogger.error("GlobalBlacklistStore.removeServer failed", { serverId, err });
+    }
   }
 
   public static getServerBlacklist(): string[] {

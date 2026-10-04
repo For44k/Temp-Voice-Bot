@@ -1,6 +1,0 @@
-FAILED FOR: Voice Control <:Maskgrouplockblack:1537819141006827611> => Invalid Form Body
-components[0].components[0].options[0].emoji.id[COMPONENT_INVALID_EMOJI]: Invalid emoji
-SUCCESS FOR: Ownership & Managers <:Maskgroupclaimblack:1537819923710214209>
-SUCCESS FOR: Whitelist & Blacklist <:Maskgrouprejectblack:1537818916288466956>
-SUCCESS FOR: Custom Aliases <:Maskgroupnameblack:1537819023469846559>
-SUCCESS FOR: Server Setup & Admin <:Maskgroupresetblack:1537819877891375136>

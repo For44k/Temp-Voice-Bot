@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Partials, Routes, REST, Message, ActivityType, MessageFlags } from "discord.js";
+import { Client, GatewayIntentBits, Partials, Routes, REST, Message, ActivityType, MessageFlags, Interaction, Events } from "discord.js";
 import { ENV } from "../config/env";
 import { FastLogger } from "../logger/logger";
 import { WebhookLogger } from "../logger/webhook.logger";
@@ -16,6 +16,7 @@ import { ThemeManager } from "../config/theme";
 import { PreferencesStore } from "../../modules/user/cache/preferences.store";
 import { BotDeveloperStore } from "../../modules/user/cache/bot-developer.store";
 import { UserProfileStore } from "../../modules/user/cache/user-profile.store";
+import { EmojiSyncService } from "../services/emoji-sync.service";
 
 export class BotGateway {
   public static client: Client;
@@ -41,7 +42,7 @@ export class BotGateway {
   }
 
   private registerEvents(): void {
-    this.client.once("clientReady" as any, async () => {
+    this.client.once(Events.ClientReady, async () => {
       FastLogger.success(`Logged in as ${this.client.user?.tag}`);
 
       const statuses = ["67", "3067", "3045 Twins"];
@@ -69,7 +70,8 @@ export class BotGateway {
         PreferencesStore.preload(),
         ThemeManager.preload(),
         BotDeveloperStore.preload(),
-        UserProfileStore.preload()
+        UserProfileStore.preload(),
+        EmojiSyncService.loadApplicationEmojis(ENV.TOKEN, ENV.CLIENT_ID)
       ]).then(async () => {
         await VoiceMemoryStore.reconcileWithDiscord(this.client);
         for (const [guildId, guild] of this.client.guilds.cache) {
@@ -105,75 +107,17 @@ export class BotGateway {
         }
       }
 
-      onVoiceStateUpdate(oldState, newState).catch((err: any) =>
+      onVoiceStateUpdate(oldState, newState).catch((err: unknown) =>
         FastLogger.error("VoiceStateUpdate Error", err)
       );
     });
 
     this.client.on("interactionCreate", async (interaction) => {
-      try {
-        if (GlobalBlacklistStore.isUserBlacklisted(interaction.user.id)) {
-          return;
-        }
-
-        if (interaction.isButton()) {
-          await InteractionDispatcher.handleButton(interaction);
-          return;
-        }
-
-        if (interaction.isModalSubmit()) {
-          await InteractionDispatcher.handleModal(interaction);
-          return;
-        }
-
-        if (interaction.isAnySelectMenu()) {
-          await InteractionDispatcher.handleSelectMenu(interaction);
-          return;
-        }
-      } catch (err) {
-        FastLogger.error(`Interaction Error`, err);
-        const reply = await Usages.impossible(interaction.guildId, "**__An error occurred while executing this action :__**");
-        if (interaction.isRepliable()) {
-          if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ ...reply, flags: MessageFlags.Ephemeral as any }).catch(() => { });
-          } else {
-            await interaction.reply({ ...reply, flags: MessageFlags.Ephemeral as any }).catch(() => { });
-          }
-        }
-      }
+      await handleInteractionEvent(interaction);
     });
 
     this.client.on("messageCreate", async (message: Message) => {
-      if (message.author.bot || !message.guild) return;
-      if (GlobalBlacklistStore.isUserBlacklisted(message.author.id)) return;
-
-      const trimmed = message.content.trim();
-      if (!trimmed.startsWith(".v ") && trimmed !== ".v") return;
-
-      const restContent = trimmed === ".v" ? "help" : trimmed.slice(2).trim();
-      const rawArgs = restContent.split(/\s+/);
-      const rawCmdName = rawArgs[0]?.toLowerCase() || "help";
-
-      const userAliasTarget = await AliasStore.resolve(message.guild.id, message.author.id, rawCmdName);
-      const commandName = userAliasTarget || rawCmdName;
-
-      const cmd = prefixCommandMap.get(commandName);
-      if (cmd && cmd.executePrefix) {
-        try {
-          await cmd.executePrefix(message, rawArgs.slice(1));
-          const { ActionLogger } = await import("../logger/action.logger");
-          await ActionLogger.logAction({
-            guildId: message.guild.id,
-            executorId: message.author.id,
-            action: `Command: .v ${commandName}`,
-            details: rawArgs.slice(1).length > 0 ? `\`${rawArgs.slice(1).join(" ")}\`` : undefined
-          }).catch(() => { });
-        } catch (err: any) {
-          FastLogger.error(`Prefix Command Error: ${commandName}`, err);
-          const reply = await Usages.impossible(message.guildId, "An error occurred while executing this command.");
-          await message.reply({ ...reply, allowedMentions: { parse: [] } }).catch(() => {});
-        }
-      }
+      await handlePrefixMessage(message);
     });
   }
 
@@ -187,3 +131,70 @@ export class BotGateway {
     }
   }
 }
+
+export async function handleInteractionEvent(interaction: Interaction): Promise<void> {
+  try {
+    if (GlobalBlacklistStore.isUserBlacklisted(interaction.user.id)) {
+      return;
+    }
+
+    if (interaction.isButton()) {
+      await InteractionDispatcher.handleButton(interaction);
+      return;
+    }
+
+    if (interaction.isModalSubmit()) {
+      await InteractionDispatcher.handleModal(interaction);
+      return;
+    }
+
+    if (interaction.isAnySelectMenu()) {
+      await InteractionDispatcher.handleSelectMenu(interaction);
+      return;
+    }
+  } catch (err) {
+    FastLogger.error(`Interaction Error`, err);
+    const reply = await Usages.impossible(interaction.guildId, "**__An error occurred while executing this action :__**");
+    if (interaction.isRepliable()) {
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({ ...reply, flags: MessageFlags.Ephemeral }).catch(() => { });
+      } else {
+        await interaction.reply({ ...reply, flags: MessageFlags.Ephemeral }).catch(() => { });
+      }
+    }
+  }
+}
+
+export async function handlePrefixMessage(message: Message): Promise<void> {
+  if (message.author.bot || !message.guild) return;
+  if (GlobalBlacklistStore.isUserBlacklisted(message.author.id)) return;
+
+  const trimmed = message.content.trim();
+  if (!trimmed.startsWith(".v ") && trimmed !== ".v") return;
+
+  const restContent = trimmed === ".v" ? "help" : trimmed.slice(2).trim();
+  const rawArgs = restContent.split(/\s+/);
+  const rawCmdName = rawArgs[0]?.toLowerCase() || "help";
+
+  const userAliasTarget = await AliasStore.resolve(message.guild.id, message.author.id, rawCmdName);
+  const commandName = userAliasTarget || rawCmdName;
+
+  const cmd = prefixCommandMap.get(commandName);
+  if (cmd && cmd.executePrefix) {
+    try {
+      await cmd.executePrefix(message, rawArgs.slice(1));
+      const { ActionLogger } = await import("../logger/action.logger");
+      await ActionLogger.logAction({
+        guildId: message.guild.id,
+        executorId: message.author.id,
+        action: `Command: .v ${commandName}`,
+        details: rawArgs.slice(1).length > 0 ? `\`${rawArgs.slice(1).join(" ")}\`` : undefined
+      }).catch(() => { });
+    } catch (err: unknown) {
+      FastLogger.error(`Prefix Command Error: ${commandName}`, err);
+      const reply = await Usages.impossible(message.guildId, "An error occurred while executing this command.");
+      await message.reply({ ...reply, allowedMentions: { parse: [] } }).catch(() => {});
+    }
+  }
+}
+

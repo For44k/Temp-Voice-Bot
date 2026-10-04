@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { Usages } from "../../../../shared/embeds/usages";
 import { Replies } from "../../../../shared/embeds/replies";
@@ -18,7 +18,7 @@ export const abCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
+    if (!VoiceAuthService.isOwner(channel.id, member.id)) {
       await message.reply({ ...(await Replies.notOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }

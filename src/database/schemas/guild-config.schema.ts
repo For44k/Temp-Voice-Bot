@@ -13,6 +13,8 @@ export interface IGuildConfig {
   categoryId?: string;
   logsChannelId?: string;
   rejectChannelId?: string;
+  supportVoiceChannelId?: string;
+  ticketTextChannelId?: string;
   defaultLimit: number;
   panelImageUrl?: string;
   nameTemplate?: string;
@@ -20,16 +22,19 @@ export interface IGuildConfig {
   defaultStatus?: string;
   defaultChannelStatus?: string;
   defaultVoiceStatus?: string | null;
+  twoPanelsEnabled?: boolean;
   games?: IGuildGame[];
 }
 
 const GuildConfigSchema = new Schema<IGuildConfig>({
-  guildId: { type: String, required: true, unique: true, index: true },
+  guildId: { type: String, required: true, unique: true },
   generatorId: { type: String, required: true },
   voiceChannelId: { type: String },
   categoryId: { type: String },
   logsChannelId: { type: String },
   rejectChannelId: { type: String },
+  supportVoiceChannelId: { type: String },
+  ticketTextChannelId: { type: String },
   defaultLimit: { type: Number, default: 0 },
   panelImageUrl: { type: String },
   nameTemplate: { type: String },
@@ -37,6 +42,7 @@ const GuildConfigSchema = new Schema<IGuildConfig>({
   defaultStatus: { type: String },
   defaultChannelStatus: { type: String },
   defaultVoiceStatus: { type: String },
+  twoPanelsEnabled: { type: Boolean, default: false },
   games: [{
     name: { type: String, required: true },
     roleId: { type: String, required: true },

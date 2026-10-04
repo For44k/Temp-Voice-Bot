@@ -9,13 +9,44 @@ import {
   StringSelectMenuBuilder,
   TextDisplayBuilder,
   resolveColor,
-  parseEmoji
+  parseEmoji,
+  Message,
+  StringSelectMenuOptionBuilder
 } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
 import { ThemeManager } from "../../../../core/config/theme";
 import { Usages } from "../../../../shared/embeds/usages";
+import { V2Payload } from "../../../../shared/types/v2.types";
 
 export const THEME_PRESETS = [
+  {
+    hex: "#c4c3ff",
+    name: "Lavender Dusk Gradient",
+    desc: "Animated Gradient (#C4C3FF ➔ #52528C)",
+    emoji: "<a:anim_col_grad_lavender:1548092482879758447>",
+    id: "grad_lavender"
+  },
+  {
+    hex: "#a7a903",
+    name: "Citrus Sunset Gradient",
+    desc: "Animated Gradient (#A7A903 ➔ #ECB280)",
+    emoji: "<a:anim_col_grad_citrus:1548094330005094514>",
+    id: "grad_citrus"
+  },
+  {
+    hex: "#8085b2",
+    name: "Ocean Twilight Gradient",
+    desc: "Animated Gradient (#8085B2 ➔ #435D75)",
+    emoji: "<a:anim_col_grad_ocean:1548094412737876139>",
+    id: "grad_ocean"
+  },
+  {
+    hex: "#e0b6b2",
+    name: "Velvet Rose Gradient",
+    desc: "Animated Gradient (#E0B6B2 ➔ #733333)",
+    emoji: "<a:anim_col_grad_velvet:1548094494195458219>",
+    id: "grad_velvet"
+  },
   {
     hex: "#000000",
     name: "Obsidian Black",
@@ -137,22 +168,22 @@ export const THEME_PRESETS = [
   }
 ];
 
-export async function buildThemeSelectPayload(guildId: string) {
+export async function buildThemeSelectPayload(guildId: string): Promise<V2Payload> {
   const currentColor = (await ThemeManager.getColor(guildId)) || "#a6c9cb";
-  const accentColor = resolveColor(currentColor as any);
+  const accentColor = resolveColor(currentColor as `#${string}`);
   const currentPreset = THEME_PRESETS.find((p) => p.hex.toLowerCase() === currentColor.toString().toLowerCase());
   const currentEmoji = currentPreset?.emoji || "<a:anim_sparkle_85:1546687452079722506>";
 
   const selectOptions = THEME_PRESETS.map((preset) => {
-    const opt: any = {
-      label: `${preset.name} [ ${preset.hex.toUpperCase()} ]`,
-      value: preset.hex,
-      description: `✦ ${preset.desc}`,
-      default: currentColor.toString().toLowerCase() === preset.hex.toLowerCase()
-    };
+    const opt = new StringSelectMenuOptionBuilder()
+      .setLabel(`${preset.name} [ ${preset.hex.toUpperCase()} ]`)
+      .setValue(preset.hex)
+      .setDescription(`✦ ${preset.desc}`)
+      .setDefault(currentColor.toString().toLowerCase() === preset.hex.toLowerCase());
+
     const parsed = parseEmoji(preset.emoji);
     if (parsed && parsed.id) {
-      opt.emoji = { id: parsed.id, name: parsed.name, animated: parsed.animated || true };
+      opt.setEmoji({ id: parsed.id, name: parsed.name ?? undefined, animated: parsed.animated || true });
     }
     return opt;
   });
@@ -193,21 +224,21 @@ export async function buildThemeSelectPayload(guildId: string) {
     .addActionRowComponents(selectRow);
 
   return {
-    flags: MessageFlags.IsComponentsV2 as any,
-    components: [container] as any
+    flags: MessageFlags.IsComponentsV2,
+    components: [container]
   };
 }
 
 export const themeCommand: ICommand = {
   name: "theme",
   prefixAliases: ["theme", "color", "setcolor", "accent"],
-  async executePrefix(message, args) {
+  async executePrefix(message: Message, args: string[]): Promise<void> {
     const guildId = message.guildId;
     if (!guildId) return;
 
     if (!message.member?.permissions.has(PermissionFlagsBits.Administrator)) {
       await message.reply({
-        ...(await Usages.impossible(guildId, "**__You must have Administrator permissions to configure server themes :__**")),
+        ...(await Usages.impossible(guildId, "You must have Administrator permissions to configure server themes")),
         allowedMentions: { parse: [] }
       });
       return;

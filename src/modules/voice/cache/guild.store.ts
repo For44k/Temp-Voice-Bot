@@ -1,10 +1,10 @@
 import { GuildConfigModel, IGuildConfig } from "../../../database/schemas/guild-config.schema";
 
 export class GuildMemoryStore {
-  private static store: Map<string, IGuildConfig> = new Map();
-  private static generatorMap: Map<string, string> = new Map();
+  private static readonly store = new Map<string, IGuildConfig>();
+  private static readonly generatorMap = new Map<string, string>();
 
-  private static normalize(item: any): IGuildConfig {
+  private static normalize(item: Partial<IGuildConfig> & { voiceChannelId?: string; channelNameTemplate?: string; defaultChannelStatus?: string }): IGuildConfig {
     if (!item.generatorId && item.voiceChannelId) {
       item.generatorId = item.voiceChannelId;
     }

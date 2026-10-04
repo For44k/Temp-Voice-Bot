@@ -45,11 +45,14 @@ import { musicCommand } from "../../modules/voice/commands/management/music.comm
 import { panelCommand } from "../../modules/voice/commands/settings/panel.command";
 import { joinCommand } from "../../modules/voice/commands/management/join.command";
 import { helpCommand } from "../../modules/user/commands/help.command";
+import { pingCommand } from "../../modules/user/commands/ping.command";
 import { bannerCommand } from "../../modules/voice/commands/settings/banner.command";
 import { abCommand } from "../../modules/voice/commands/access/ab.command";
+import { needhelpCommand } from "../../modules/voice/commands/management/needhelp.command";
 
 export const commandRegistry: ICommand[] = [
   helpCommand,
+  pingCommand,
   bannerCommand,
   abCommand,
   lockCommand,
@@ -80,6 +83,7 @@ export const commandRegistry: ICommand[] = [
   onetapCommand,
   setupCommand,
   setbotCommand,
+  needhelpCommand,
   nameCommand,
   limitCommand,
   statusCommand,

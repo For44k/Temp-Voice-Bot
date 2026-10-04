@@ -1,12 +1,10 @@
 import { initDatabase } from "./database/connection";
 import { BotGateway } from "./core/gateway/bot.gateway";
 import { FastLogger } from "./core/logger/logger";
-import { TaskWorkerQueue } from "./core/workers/task-worker.queue";
 import { PersistenceWorkerQueue } from "./core/workers/persistence.worker";
 
 async function main(): Promise<void> {
   await initDatabase();
-  await TaskWorkerQueue.init();
   const bot = new BotGateway();
   await bot.start();
   FastLogger.info("One Tap Voice Manager is active");

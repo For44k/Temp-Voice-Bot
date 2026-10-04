@@ -47,6 +47,17 @@ export const gameCommand: ICommand = {
     }
 
     if (sub === "add") {
+      if (!config?.twoPanelsEnabled) {
+        await message.reply({
+          ...(await Usages.impossible(
+            guildId,
+            "Two Panels feature is disabled. Please enable Secondary Music & Activities Panel in `.v setup` first."
+          )),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+
       let role: Role | null | undefined = message.mentions.roles.first();
       let roleArgIndex = -1;
 

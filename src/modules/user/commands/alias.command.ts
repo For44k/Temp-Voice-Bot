@@ -52,6 +52,15 @@ export const aliasCommand: ICommand = {
         return;
       }
 
+      const isCoreCommand = commandRegistry.some((c) => c.name === alias || c.prefixAliases?.includes(alias));
+      if (isCoreCommand) {
+        await message.reply({
+          ...(await Usages.impossible(guildId, `**__Cannot use core command name \`${alias}\` as an alias :__**`)),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
+
       const exists = commandRegistry.some((c) => c.name === target || c.prefixAliases?.includes(target));
       if (!exists) {
         await message.reply({
@@ -114,6 +123,14 @@ export const aliasCommand: ICommand = {
     if (args.length >= 2) {
       const alias = args[0].toLowerCase();
       const target = args[1].toLowerCase();
+      const isCoreCommand = commandRegistry.some((c) => c.name === alias || c.prefixAliases?.includes(alias));
+      if (isCoreCommand) {
+        await message.reply({
+          ...(await Usages.impossible(guildId, `**__Cannot use core command name \`${alias}\` as an alias :__**`)),
+          allowedMentions: { parse: [] }
+        });
+        return;
+      }
       const exists = commandRegistry.some((c) => c.name === target || c.prefixAliases?.includes(target));
       if (exists) {
         const res = await AliasStore.addAlias(guildId, userId, alias, target);

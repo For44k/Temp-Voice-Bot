@@ -2,8 +2,6 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
   ContainerBuilder,
   SeparatorBuilder,
   TextDisplayBuilder,
@@ -15,31 +13,29 @@ import {
 import { ThemeManager } from "../config/theme";
 import { GuildMemoryStore } from "../../modules/voice/cache/guild.store";
 import { UserProfileStore } from "../../modules/user/cache/user-profile.store";
+import { DefaultAssetService } from "../services/default-assets.service";
+import { V2Payload } from "../../shared/types/v2.types";
 
 export class PanelBuilder {
-  private static readonly PANEL_TITLE_EMOJI = "<a:pink_Heartjump:1546859773721444382>";
-
   public static getPanelRow1(guildId?: string | null): ActionRowBuilder<ButtonBuilder> {
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("modal_open:rename").setEmoji(ThemeManager.getThemeEmoji(guildId, "rename")).setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("btn:lock").setEmoji(ThemeManager.getThemeEmoji(guildId, "lock")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:unlock").setEmoji(ThemeManager.getThemeEmoji(guildId, "unlock")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:hide").setEmoji(ThemeManager.getThemeEmoji(guildId, "hide")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:unhide").setEmoji(ThemeManager.getThemeEmoji(guildId, "unhide")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:antiabuse").setEmoji(ThemeManager.getThemeEmoji(guildId, "antiabuse")).setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId("btn:unlock").setEmoji(ThemeManager.getThemeEmoji(guildId, "unlock")).setStyle(ButtonStyle.Secondary)
     );
   }
 
   public static getPanelRow2(guildId?: string | null): ActionRowBuilder<ButtonBuilder> {
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId("btn:hide").setEmoji(ThemeManager.getThemeEmoji(guildId, "hide")).setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("btn:unhide").setEmoji(ThemeManager.getThemeEmoji(guildId, "unhide")).setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId("modal_open:limit").setEmoji(ThemeManager.getThemeEmoji(guildId, "limit")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("modal_open:rename").setEmoji(ThemeManager.getThemeEmoji(guildId, "rename")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:info").setEmoji(ThemeManager.getThemeEmoji(guildId, "info")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:claim").setEmoji(ThemeManager.getThemeEmoji(guildId, "claim")).setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId("btn:extra").setEmoji(ThemeManager.getThemeEmoji(guildId, "extra")).setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId("btn:antiabuse").setEmoji(ThemeManager.getThemeEmoji(guildId, "antiabuse")).setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId("btn:info").setEmoji(ThemeManager.getThemeEmoji(guildId, "info")).setStyle(ButtonStyle.Secondary)
     );
   }
 
-  public static async createPanel(guildId: string, memberId: string, includeGameSelect: boolean = true): Promise<any> {
+  public static async createPanel(guildId: string, memberId: string): Promise<V2Payload> {
     const color = ThemeManager.getColorSync(guildId);
     const guildConfig = GuildMemoryStore.resolve(guildId);
     let panelImageUrl = guildConfig?.panelImageUrl;
@@ -51,17 +47,17 @@ export class PanelBuilder {
       }
     }
 
+    if (!panelImageUrl) {
+      panelImageUrl = DefaultAssetService.getDefaultPanelImageSync() || (await DefaultAssetService.getDefaultPanelImageUrl()) || undefined;
+    }
+
     const resolvedColor = color ? resolveColor(color) : null;
     const container = new ContainerBuilder();
     if (resolvedColor) container.setAccentColor(resolvedColor);
 
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# ${this.PANEL_TITLE_EMOJI} ⌇ __Voice Panel..!!__`)
-      )
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`> ⟢ <a:94071angelheart:1546859784374976603>・ **__Welcome : <@${memberId}>__**`)
+        new TextDisplayBuilder().setContent(`## __**<@${memberId}> Enjoy**__`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
@@ -74,65 +70,45 @@ export class PanelBuilder {
       container.addSeparatorComponents(new SeparatorBuilder().setDivider(true));
     }
 
+    const supportBtnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("btn:need_help")
+        .setLabel("Need Help")
+        .setStyle(ButtonStyle.Secondary)
+    );
+
+    const ticketBtnRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId("btn:ticket")
+        .setLabel("Ticket")
+        .setStyle(ButtonStyle.Secondary)
+    );
+
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `✦ ・ **__Your private room is active! Control your channel settings using the quick buttons below.__**`
-        )
+        new TextDisplayBuilder().setContent(`✦ ・ For voice assistance, join a support voice channel`)
       )
+      .addActionRowComponents(supportBtnRow)
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`✦ ・ To report any issues on the server, please open a ticket.`)
+      )
+      .addActionRowComponents(ticketBtnRow)
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addActionRowComponents(this.getPanelRow1(guildId))
-      .addActionRowComponents(this.getPanelRow2(guildId));
-
-    if (includeGameSelect) {
-      const games = guildConfig?.games || [];
-      const hasGames = games.length > 0;
-      const options = hasGames
-        ? games.slice(0, 25).map((g) => {
-          const opt = new StringSelectMenuOptionBuilder()
-            .setLabel(g.name)
-            .setValue(g.roleId)
-            .setDescription(`Mention @${g.name} role`);
-
-          if (g.emoji) {
-            opt.setEmoji(g.emoji);
-          }
-
-          return opt;
-        })
-        : [
-          new StringSelectMenuOptionBuilder()
-            .setLabel("No games added yet")
-            .setValue("no_games")
-            .setDescription("Admins can add games via .v game add <name> @role")
-        ];
-
-      const gameMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId("select:game_mention")
-          .setPlaceholder("Select a game to mention its role...")
-          .setDisabled(!hasGames)
-          .addOptions(options)
+      .addActionRowComponents(this.getPanelRow2(guildId))
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`-# Enjoy your voice channel`)
       );
 
-      container
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `> ✦ ・ **__Looking for teammates? Select a game below to notify players!__**`
-          )
-        )
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-        .addActionRowComponents(gameMenu);
-    }
-
     return {
-      flags: MessageFlags.IsComponentsV2 as any,
-      components: [container] as any
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     };
   }
 
-  public static async createExtraPanel(guildId: string): Promise<any> {
+  public static async createExtraPanel(guildId: string): Promise<V2Payload> {
     const color = ThemeManager.getColorSync(guildId);
     const accentColor = color ? resolveColor(color) : null;
     const extraEmoji = ThemeManager.getThemeEmoji(guildId, "extra");
@@ -168,26 +144,26 @@ export class PanelBuilder {
 
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# ${extraEmoji} __Extra Voice Features__`)
+        new TextDisplayBuilder().setContent(`## ${extraEmoji} Extra Voice Features`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`> ⟢ **__Voice Moderation Tools :__** *Mute or deafen members inside your voice room*`)
+        new TextDisplayBuilder().setContent(`- __Voice Moderation Tools: Mute or deafen members inside your voice room__  ⁘`)
       )
       .addActionRowComponents(muteRow)
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`> ⟢ **__Advanced Rejection Tools :__** *Temporarily or randomly remove users*`)
+        new TextDisplayBuilder().setContent(`- __Advanced Rejection Tools: Temporarily or randomly remove users__  ⁘`)
       )
       .addActionRowComponents(rejectRow);
 
     return {
-      flags: MessageFlags.IsComponentsV2 as any,
-      components: [container] as any
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     };
   }
 
-  public static async createMusicActivityPanel(guildId: string): Promise<any> {
+  public static async createMusicActivityPanel(guildId: string): Promise<V2Payload> {
     const color = ThemeManager.getColorSync(guildId);
     const resolvedColor = color ? resolveColor(color) : null;
     const musicEmoji = ThemeManager.getThemeEmoji(guildId, "music");
@@ -201,7 +177,7 @@ export class PanelBuilder {
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId("btn:activity_launch")
-        .setLabel("Lunch.A")
+        .setLabel("Launch.A")
         .setEmoji(activityEmoji)
         .setStyle(ButtonStyle.Secondary)
     );
@@ -211,40 +187,45 @@ export class PanelBuilder {
 
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# <a:eedgy_hkwave:1545100098470416445>  __Want a Music Bot & Launch Activities..?__`)
+        new TextDisplayBuilder().setContent(`## <a:anim_extra_cb:1546633992030265507> Music & Activities`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`- __Click the first button to get a music bot, or the second button to launch a voice activity.__`)
+        new TextDisplayBuilder().setContent(`- __Click the first button to get a music bot, or the second button to launch a voice activity__  ⁘`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addActionRowComponents(actionRow)
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
     return {
-      flags: MessageFlags.IsComponentsV2 as any,
-      components: [container] as any
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     };
   }
 
   public static async createFullPanelPayload(
     guildId: string,
-    memberId: string,
-    includeGameSelect: boolean = true
-  ): Promise<any> {
-    const [panelPayload, musicActivityPayload] = await Promise.all([
-      this.createPanel(guildId, memberId, includeGameSelect),
-      this.createMusicActivityPanel(guildId)
-    ]);
+    memberId: string
+  ): Promise<V2Payload> {
+    const config = GuildMemoryStore.resolve(guildId) ?? await GuildMemoryStore.resolveAsync(guildId);
+    const panelPayload = await this.createPanel(guildId, memberId);
+
+    if (config?.twoPanelsEnabled) {
+      const musicActivityPayload = await this.createMusicActivityPanel(guildId);
+      return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [
+          ...panelPayload.components,
+          ...musicActivityPayload.components
+        ],
+        allowedMentions: { parse: [] }
+      };
+    }
 
     return {
-      flags: MessageFlags.IsComponentsV2 as any,
-      components: [
-        ...panelPayload.components,
-        ...musicActivityPayload.components
-      ] as any,
+      flags: MessageFlags.IsComponentsV2,
+      components: panelPayload.components,
       allowedMentions: { parse: [] }
     };
   }
 }
-

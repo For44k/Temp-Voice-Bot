@@ -18,15 +18,16 @@ import {
   Routes
 } from "discord.js";
 import { ThemeManager } from "../../config/theme";
-import { GlobalMusicBotModel } from "../../../database/schemas/global-music-bot.schema";
+import { GlobalMusicBotModel, IGlobalMusicBot } from "../../../database/schemas/global-music-bot.schema";
+import { FastLogger } from "../../logger/logger";
 
 export class MusicActivityHandler {
   public static readonly STAR_EMOJI = "<a:white_stars:1547180877962944585>";
   public static readonly WAIT_EMOJI = "<a:gh1y1ne:1546859779333292103>";
-  private static cachedBots: any[] = [];
+  private static cachedBots: IGlobalMusicBot[] = [];
   private static lastBotFetch = 0;
 
-  private static async getMusicBots(): Promise<any[]> {
+  private static async getMusicBots(): Promise<IGlobalMusicBot[]> {
     const now = Date.now();
     if (this.cachedBots.length > 0 && now - this.lastBotFetch < 60_000) {
       return this.cachedBots;
@@ -34,7 +35,8 @@ export class MusicActivityHandler {
     try {
       this.cachedBots = await GlobalMusicBotModel.find().lean();
       this.lastBotFetch = now;
-    } catch {
+    } catch (err: unknown) {
+      FastLogger.error("Failed to fetch global music bots", err);
       if (this.cachedBots.length === 0) return [];
     }
     return this.cachedBots;
@@ -91,7 +93,9 @@ export class MusicActivityHandler {
       await interaction.reply({
         content: "This command can only be used in a server.",
         flags: MessageFlags.Ephemeral
-      }).catch(() => {});
+      }).catch((replyError: unknown) => {
+        FastLogger.warn(`Failed to send music get error: ${String(replyError)}`);
+      });
       return;
     }
 
@@ -100,7 +104,7 @@ export class MusicActivityHandler {
 
     const allBots = await this.getMusicBots();
     let foundBotMember: GuildMember | null = null;
-    let foundBotConfig: (typeof allBots)[0] | null = null;
+    let foundBotConfig: IGlobalMusicBot | null = null;
 
     if (allBots.length > 0) {
       for (const bot of allBots) {
@@ -134,7 +138,7 @@ export class MusicActivityHandler {
       const textSection = new SectionBuilder()
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `### __${botName} is Here to play music For you__\n> **__Just type \`${foundBotConfig.prefix}\` to start listening to music.__**`
+            `### __${botName} is here to play music for you__\n> **__Type \`${foundBotConfig.prefix}\` to start listening to music.__**`
           )
         );
 
@@ -144,7 +148,7 @@ export class MusicActivityHandler {
 
       container
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`# ${this.STAR_EMOJI}  __I found a bot For You!!__`)
+          new TextDisplayBuilder().setContent(`# ${this.STAR_EMOJI}  __I Found a Bot For You!__`)
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addSectionComponents(textSection)
@@ -152,11 +156,11 @@ export class MusicActivityHandler {
     } else {
       container
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`# __Oops..!__`)
+          new TextDisplayBuilder().setContent(`# __Oops!__`)
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`> -# __I couldn't find any global music bot in this server.__`)
+          new TextDisplayBuilder().setContent(`> -# __No registered global music bot was found in this server.__`)
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addTextDisplayComponents(
@@ -166,9 +170,11 @@ export class MusicActivityHandler {
     }
 
     await interaction.reply({
-      flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
-      components: [container] as any
-    }).catch(() => {});
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      components: [container]
+    }).catch((replyError: unknown) => {
+      FastLogger.warn(`Failed to send music reply: ${String(replyError)}`);
+    });
   }
 
   public static async handleActivityLaunch(interaction: ButtonInteraction): Promise<void> {
@@ -190,32 +196,35 @@ export class MusicActivityHandler {
     const selectMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId("select:activity_launch")
-        .setPlaceholder("Select an activity to launch...!!")
+        .setPlaceholder("Select an activity to launch...")
         .addOptions(options)
     );
 
     container
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# ${activityEmoji} __Want Some Fun in Voice..?__`)
+        new TextDisplayBuilder().setContent(`# ${activityEmoji} __Launch a Voice Activity__`)
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `- __Choose an activity below to play with your friends in voice chat, share great moments, and create more memories in your server.__`
+          `- __Choose an activity below to play with your friends in voice chat and share great moments together.__`
         )
       )
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
       .addActionRowComponents(selectMenu);
 
     await interaction.reply({
-      flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
-      components: [container] as any
-    }).catch(() => {});
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      components: [container]
+    }).catch((replyError: unknown) => {
+      FastLogger.warn(`Failed to send activity launch reply: ${String(replyError)}`);
+    });
   }
 
   public static async handleActivitySelect(interaction: StringSelectMenuInteraction): Promise<void> {
-    const member = interaction.member as GuildMember;
-    const voiceChannel = member?.voice?.channel as VoiceChannel | null;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const voiceChannel = member.voice.channel as VoiceChannel | null;
     const guildId = interaction.guildId;
     const color = guildId ? ThemeManager.getColorSync(guildId) : null;
     const accentColor = color ? resolveColor(color) : null;
@@ -231,19 +240,22 @@ export class MusicActivityHandler {
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`- __Join a voice channel first.__`)
+          new TextDisplayBuilder().setContent(`- __Please join a voice channel first.__`)
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await interaction.reply({
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
-        components: [container] as any
-      }).catch(() => {});
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [container]
+      }).catch((replyError: unknown) => {
+        FastLogger.warn(`Failed to send voice required reply: ${String(replyError)}`);
+      });
       return;
     }
 
     const selectedValue = interaction.values[0];
     const activityConfig = this.ACTIVITIES.find((a) => a.value === selectedValue) || this.ACTIVITIES[0];
+    if (!activityConfig) return;
 
     try {
       let inviteUrl: string | null = null;
@@ -269,7 +281,9 @@ export class MusicActivityHandler {
             maxUses: 0
           });
           inviteUrl = `https://discord.gg/${standardInvite.code}`;
-        } catch {}
+        } catch (inviteErr: unknown) {
+          FastLogger.error("Failed to create fallback invite", inviteErr);
+        }
       }
 
       if (!inviteUrl) {
@@ -289,12 +303,12 @@ export class MusicActivityHandler {
 
       container
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`# ${activityEmoji} __Voice Activity Launched..!!__`)
+          new TextDisplayBuilder().setContent(`# ${activityEmoji} __Voice Activity Launched!__`)
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `- <@${member.id}> **__launched ${activityConfig.label} in__** <#${voiceChannel.id}>\n> ⟢ **__Click the button below to join the voice activity__**`
+            `- <@${member.user.id}> **__launched ${activityConfig.label} in__** <#${voiceChannel.id}>\n> ⟢ **__Click the button below to join the voice activity:__**`
           )
         )
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
@@ -305,14 +319,16 @@ export class MusicActivityHandler {
         await interaction.deferUpdate().catch(() => {});
       });
 
-      const sendChannel = (voiceChannel.isSendable() ? voiceChannel : interaction.channel) as any;
-      if (sendChannel && typeof sendChannel.send === "function") {
-        await sendChannel.send({
-          flags: MessageFlags.IsComponentsV2 as any,
-          components: [container] as any
-        }).catch(() => {});
+      if (voiceChannel.isSendable()) {
+        await voiceChannel.send({
+          flags: MessageFlags.IsComponentsV2,
+          components: [container]
+        }).catch((sendError: unknown) => {
+          FastLogger.warn(`Failed to send activity announcement to channel: ${String(sendError)}`);
+        });
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      FastLogger.error("Error launching activity", err);
       const container = new ContainerBuilder();
       if (accentColor) container.setAccentColor(accentColor);
 
@@ -329,12 +345,12 @@ export class MusicActivityHandler {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await interaction.update({
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
-        components: [container] as any
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [container]
       }).catch(async () => {
         await interaction.reply({
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
-          components: [container] as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          components: [container]
         }).catch(() => {});
       });
     }

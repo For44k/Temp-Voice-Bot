@@ -29,7 +29,7 @@ export const panelCommand: ICommand = {
       return;
     }
 
-    const fullPayload = await PanelBuilder.createFullPanelPayload(guildId, session.ownerId, true);
+    const fullPayload = await PanelBuilder.createFullPanelPayload(guildId, session.ownerId);
     await message.reply(fullPayload).catch(() => {});
   }
 };

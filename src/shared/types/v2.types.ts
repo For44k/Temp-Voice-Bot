@@ -1,7 +1,7 @@
-import { ContainerBuilder, MessageFlags } from "discord.js";
+import { MessageFlags, MessageMentionOptions, BaseMessageOptions } from "discord.js";
 
 export interface V2Payload {
   flags: number | MessageFlags;
-  components: ContainerBuilder[];
-  allowedMentions?: { parse: string[] };
+  components: NonNullable<BaseMessageOptions["components"]>;
+  allowedMentions?: MessageMentionOptions;
 }

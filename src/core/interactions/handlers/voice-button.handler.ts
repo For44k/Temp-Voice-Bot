@@ -11,18 +11,19 @@ import {
   TextDisplayBuilder,
   MessageFlags,
   resolveColor,
-  Routes
+  UserSelectMenuBuilder
 } from "discord.js";
-import { VoiceLifecycleService } from "../../../modules/voice/services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../../modules/voice/services/voice-auth.service";
 import { VoicePermissionsManager } from "../../../modules/voice/services/voice-permission.service";
 import { VoiceMemoryStore } from "../../../modules/voice/cache/voice.store";
-import { PreferencesStore } from "../../../modules/user/cache/preferences.store";
+import { GuildMemoryStore } from "../../../modules/voice/cache/guild.store";
 import { Usages } from "../../../shared/embeds/usages";
 import { Replies } from "../../../shared/embeds/replies";
 import { PanelBuilder } from "../panel.builder";
 import { buildChannelInfoPayload } from "../../../modules/voice/commands/settings/stats.command";
 import { ThemeManager } from "../../config/theme";
 import { ActionLogger } from "../../logger/action.logger";
+import { NeedHelpService } from "../../../modules/voice/commands/management/needhelp.command";
 
 function textInputRow(customId: string, label: string, placeholder: string, value?: string, maxLength = 100): ActionRowBuilder<TextInputBuilder> {
   const input = new TextInputBuilder()
@@ -40,18 +41,46 @@ function textInputRow(customId: string, label: string, placeholder: string, valu
 
 export class VoiceButtonHandler {
   public static async handle(interaction: ButtonInteraction): Promise<void> {
-    const member = interaction.member as GuildMember;
-    const guildId = interaction.guildId!;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
     const customId = interaction.customId;
+
+    if (customId === "btn:need_help") {
+      const result = await NeedHelpService.execute(member, guildId);
+      await interaction.reply({
+        ...result.payload,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        allowedMentions: { parse: [] }
+      });
+      return;
+    }
+
+    if (customId === "btn:ticket") {
+      const config = GuildMemoryStore.resolve(guildId) ?? await GuildMemoryStore.resolveAsync(guildId);
+      if (config?.ticketTextChannelId) {
+        await interaction.reply({
+          ...(await Usages.executedAction(guildId, "Ticket", `Please open a ticket in <#${config.ticketTextChannelId}>`)),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+      } else {
+        await interaction.reply({
+          ...(await Usages.impossible(guildId, "Ticket channel has not been configured yet")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+      }
+      return;
+    }
 
     if (customId.startsWith("btn_see_members:")) {
       const channelId = customId.split(":")[1];
-      const targetChannel = (interaction.guild?.channels.cache.get(channelId) || member?.voice?.channel) as VoiceChannel | null;
+      const targetChannel = (channelId ? interaction.guild?.channels.cache.get(channelId) : null) ?? member.voice.channel;
 
-      if (!targetChannel || !targetChannel.isVoiceBased()) {
+      if (!targetChannel || !(targetChannel instanceof VoiceChannel)) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__Voice channel not found :__**")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "Voice channel not found")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -79,8 +108,8 @@ export class VoiceButtonHandler {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await interaction.reply({
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
-        components: [container] as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [container],
         allowedMentions: { parse: [] }
       });
       return;
@@ -91,25 +120,35 @@ export class VoiceButtonHandler {
       const action = parts[0];
       const targetChannelId = parts[1];
       const targetUserId = parts[2];
+      if (!targetChannelId || !targetUserId) return;
 
       const session = VoiceMemoryStore.get(targetChannelId);
       if (!session) {
         await interaction.reply({
           ...(await Usages.impossible(guildId, "Voice channel no longer active")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
-      if (interaction.user.id !== session.ownerId && !VoiceLifecycleService.isManager(targetChannelId, interaction.user.id)) {
+      if (interaction.user.id !== session.ownerId && !VoiceAuthService.isManager(targetChannelId, interaction.user.id)) {
         await interaction.reply({
           ...(await Usages.notManagerOrOwner(guildId)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
-      const targetChannel = interaction.guild?.channels.cache.get(targetChannelId) as VoiceChannel | null;
+      const targetChannel = interaction.guild?.channels.cache.get(targetChannelId);
+      const voiceTargetChannel = targetChannel instanceof VoiceChannel ? targetChannel : null;
+
+      if (!VoiceAuthService.canManageTarget(targetChannelId, interaction.user.id, targetUserId, interaction.guild)) {
+        await interaction.reply({
+          ...(await Usages.impossible(guildId, "Cannot manage administrators or server managers")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+        });
+        return;
+      }
 
       if (action === "antiabuse_permit") {
         session.whitelist.add(targetUserId);
@@ -120,10 +159,10 @@ export class VoiceButtonHandler {
         }
 
         const targetMember = interaction.guild?.members.cache.get(targetUserId);
-        if (targetChannel && targetMember) {
-          await VoicePermissionsManager.permitMember(targetChannel, targetMember);
-        } else if (targetChannel) {
-          await targetChannel.permissionOverwrites.edit(targetUserId, {
+        if (voiceTargetChannel && targetMember) {
+          await VoicePermissionsManager.permitMember(voiceTargetChannel, targetMember);
+        } else if (voiceTargetChannel) {
+          await voiceTargetChannel.permissionOverwrites.edit(targetUserId, {
             Connect: true,
             ViewChannel: true,
             SendMessages: true,
@@ -138,22 +177,21 @@ export class VoiceButtonHandler {
         });
         return;
       } else {
-        
         session.whitelist.delete(targetUserId);
         VoiceMemoryStore.sync(targetChannelId);
 
         const targetMember = interaction.guild?.members.cache.get(targetUserId);
-        if (targetChannel && targetMember) {
-          await VoicePermissionsManager.rejectMember(targetChannel, targetMember);
-        } else if (targetChannel) {
-          await targetChannel.permissionOverwrites.edit(targetUserId, {
+        if (voiceTargetChannel && targetMember) {
+          await VoicePermissionsManager.rejectMember(voiceTargetChannel, targetMember);
+        } else if (voiceTargetChannel) {
+          await voiceTargetChannel.permissionOverwrites.edit(targetUserId, {
             Connect: false,
             ViewChannel: true,
             SendMessages: false
           }).catch(() => { });
         }
 
-        if (targetMember && targetMember.voice?.channelId === targetChannelId) {
+        if (targetMember && targetMember.voice.channelId === targetChannelId) {
           await targetMember.voice.disconnect().catch(() => { });
         }
 
@@ -165,7 +203,7 @@ export class VoiceButtonHandler {
       }
     }
 
-    let channel = member?.voice?.channel as VoiceChannel | null;
+    let channel = member.voice.channel as VoiceChannel | null;
     if (!channel && interaction.channel && interaction.channel.isVoiceBased()) {
       channel = interaction.channel as VoiceChannel;
     }
@@ -173,7 +211,7 @@ export class VoiceButtonHandler {
     if (!channel) {
       await interaction.reply({
         ...(await Usages.notInVoice(guildId)),
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       }).catch(() => { });
       return;
     }
@@ -181,18 +219,17 @@ export class VoiceButtonHandler {
     const session = VoiceMemoryStore.get(channel.id);
     if (!session) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__This is not a managed temporary voice channel :__**")),
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+        ...(await Usages.impossible(guildId, "This is not a managed temporary voice channel")),
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       }).catch(() => { });
       return;
     }
 
     if (customId === "btn:claim") {
-      
       if (!channel.members.has(member.id)) {
         await interaction.reply({
           ...(await Usages.notInVoice(guildId)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -200,7 +237,7 @@ export class VoiceButtonHandler {
       if (session.ownerId === member.id) {
         await interaction.reply({
           ...(await Usages.stopDoingThat(guildId, "You are already the owner of this channel")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -208,41 +245,21 @@ export class VoiceButtonHandler {
       const ownerInChannel = channel.members.has(session.ownerId);
       if (ownerInChannel) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__The owner is still inside the voice channel :__**")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "The owner is still inside the voice channel")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
-      for (const oldCoOwnerId of session.coOwners) {
-        await channel.permissionOverwrites.delete(oldCoOwnerId).catch(() => { });
-      }
-
-      if (session.channelMutes) {
-        for (const mutedId of session.channelMutes) {
-          const m = channel.members.get(mutedId);
-          if (m) await m.voice.setMute(false).catch(() => { });
-        }
-        session.channelMutes.clear();
-      }
-      if (session.channelDeafens) {
-        for (const deafId of session.channelDeafens) {
-          const m = channel.members.get(deafId);
-          if (m) await m.voice.setDeaf(false).catch(() => { });
-        }
-        session.channelDeafens.clear();
-      }
-
-      session.coOwners.clear();
-
-      VoiceMemoryStore.reassignOwner(channel.id, member.id);
-      VoiceMemoryStore.sync(channel.id);
+      const oldOwnerId = session.ownerId;
+      await VoicePermissionsManager.transferOwnership(channel, oldOwnerId, member);
 
       const claimedPayload = await Usages.claimedChannel(guildId, member.id);
       if (session.claimPromptMessageId) {
         const promptMsgId = session.claimPromptMessageId;
         session.claimPromptMessageId = undefined;
         await interaction.update(claimedPayload).catch(async () => {
+          if (!channel) return;
           const msg = await channel.messages.fetch(promptMsgId).catch(() => null);
           if (msg) await msg.edit(claimedPayload).catch(() => { });
         });
@@ -262,10 +279,10 @@ export class VoiceButtonHandler {
     }
 
     if (customId === "modal_open:transfer") {
-      if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
+      if (!VoiceAuthService.isOwner(channel.id, member.id)) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__Only the channel owner can transfer ownership :__**")),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "Only the channel owner can transfer ownership")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -281,10 +298,10 @@ export class VoiceButtonHandler {
     }
 
     if (customId === "btn:extra") {
-      if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+      if (!VoiceAuthService.isManager(channel.id, member.id)) {
         await interaction.reply({
           ...(await Usages.notManagerOrOwner(guildId)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -292,16 +309,16 @@ export class VoiceButtonHandler {
       const extraPanelPayload = await PanelBuilder.createExtraPanel(guildId);
       await interaction.reply({
         ...extraPanelPayload,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
       return;
     }
 
     if (customId === "btn:antiabuse") {
-      if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
+      if (!VoiceAuthService.isOwner(channel.id, member.id)) {
         await interaction.reply({
           ...(await Replies.notOwner(guildId)),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -317,7 +334,7 @@ export class VoiceButtonHandler {
       const replyPayload = await Usages.executedAction(guildId, "Anti Abuse", statusText);
       await interaction.reply({
         ...replyPayload,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -327,7 +344,7 @@ export class VoiceButtonHandler {
       const embed = await Usages.executedAction(guildId, "Owner", `**__Channel Owner :__** <@${session.ownerId}>`);
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -337,16 +354,16 @@ export class VoiceButtonHandler {
       const payload = await buildChannelInfoPayload(channel, guildId);
       await interaction.reply({
         ...payload,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await interaction.reply({
         ...(await Usages.notManagerOrOwner(guildId)),
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       }).catch(() => { });
       return;
     }
@@ -364,7 +381,7 @@ export class VoiceButtonHandler {
       const embed = await Usages.executedAction(guildId, "Reset", "**__Voice channel settings & region have been refreshed.__**");
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
       return;
@@ -415,64 +432,15 @@ export class VoiceButtonHandler {
     }
 
     if (customId === "modal_open:temp_reject") {
-      try {
-        await (interaction as any).showModal({
-          title: "Temp Reject Member",
-          custom_id: "modal:temp_reject",
-          components: [
-            {
-              type: 1,
-              components: [
-                {
-                  type: 5,
-                  custom_id: "target_user_select",
-                  placeholder: "Select member to temporarily reject...",
-                  min_values: 0,
-                  max_values: 1
-                }
-              ]
-            },
-            {
-              type: 1,
-              components: [
-                {
-                  type: 4,
-                  custom_id: "target_user",
-                  label: "Or Enter Username / @mention / ID",
-                  style: 1,
-                  placeholder: "@user | username | ID",
-                  required: false
-                }
-              ]
-            },
-            {
-              type: 1,
-              components: [
-                {
-                  type: 4,
-                  custom_id: "duration",
-                  label: "Duration (e.g. 30s, 5m, 1h)",
-                  style: 1,
-                  placeholder: "10m",
-                  required: true,
-                  value: "10m"
-                }
-              ]
-            }
-          ]
-        });
-        return;
-      } catch {
-        const modal = new ModalBuilder()
-          .setCustomId("modal:temp_reject")
-          .setTitle("Temp Reject Member")
-          .addComponents(
-            textInputRow("target_user", "Member to Temp Reject (@user or ID)", "@user"),
-            textInputRow("duration", "Duration (e.g. 30s, 5m, 1h)", "10m")
-          );
-        await interaction.showModal(modal);
-        return;
-      }
+      const modal = new ModalBuilder()
+        .setCustomId("modal:temp_reject")
+        .setTitle("Temp Reject Member")
+        .addComponents(
+          textInputRow("target_user", "Member to Temp Reject (@user or ID)", "@user"),
+          textInputRow("duration", "Duration (e.g. 30s, 5m, 1h)", "10m")
+        );
+      await interaction.showModal(modal);
+      return;
     }
 
     if (customId === "modal_open:rename") {
@@ -500,8 +468,8 @@ export class VoiceButtonHandler {
     if (customId === "btn:lock") {
       if (session.isLocked) {
         await interaction.reply({
-          ...await Usages.alreadyAction(guildId, "You have been already locked the channel"),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...await Usages.alreadyAction(guildId, "The channel is already locked"),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -511,7 +479,7 @@ export class VoiceButtonHandler {
       const embedPromise = Usages.executedAction(guildId, "Lock", "**__Channel has been locked__**");
       const replyPromise = embedPromise.then((embed) => interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       }));
 
@@ -530,8 +498,8 @@ export class VoiceButtonHandler {
     if (customId === "btn:unlock") {
       if (!session.isLocked) {
         await interaction.reply({
-          ...await Usages.alreadyAction(guildId, "You have been already unlocked the channel"),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...await Usages.alreadyAction(guildId, "The channel is already unlocked"),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -541,7 +509,7 @@ export class VoiceButtonHandler {
       const embedPromise = Usages.executedAction(guildId, "Unlock", "**__Channel has been unlocked__**");
       const replyPromise = embedPromise.then((embed) => interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       }));
 
@@ -560,8 +528,8 @@ export class VoiceButtonHandler {
     if (customId === "btn:hide") {
       if (session.isHidden) {
         await interaction.reply({
-          ...await Usages.alreadyAction(guildId, "You have been already hidden the channel"),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...await Usages.alreadyAction(guildId, "The channel is already hidden"),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -571,7 +539,7 @@ export class VoiceButtonHandler {
       const embedPromise = Usages.executedAction(guildId, "Hide", "**__Channel has been hidden :__** The channel is now invisible to members.");
       const replyPromise = embedPromise.then((embed) => interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       }));
 
@@ -591,7 +559,7 @@ export class VoiceButtonHandler {
       if (!session.isHidden) {
         await interaction.reply({
           ...await Usages.alreadyAction(guildId, "The channel is already visible"),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
@@ -601,7 +569,7 @@ export class VoiceButtonHandler {
       const embedPromise = Usages.executedAction(guildId, "Unhide", "**__Channel is now visible :__** The channel is now visible to members.");
       const replyPromise = embedPromise.then((embed) => interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       }));
 
@@ -624,13 +592,14 @@ export class VoiceButtonHandler {
 
       if (candidates.length === 0) {
         await interaction.reply({
-          ...await Usages.impossible(guildId, "**__No other eligible members in voice to reject :__**"),
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any
+          ...(await Usages.impossible(guildId, "No other eligible members in voice to reject")),
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
         return;
       }
 
       const randomTarget = candidates[Math.floor(Math.random() * candidates.length)];
+      if (!randomTarget) return;
 
       if (session.coOwners.has(randomTarget.id)) {
         void VoicePermissionsManager.kickMember(channel, randomTarget);
@@ -644,7 +613,7 @@ export class VoiceButtonHandler {
         const embed = await Usages.executedAction(guildId, "Random Kick", Usages.formatUserTarget("kicked", [randomTarget.id]));
         await interaction.reply({
           ...embed,
-          flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
           allowedMentions: { parse: [] }
         });
         return;
@@ -661,7 +630,7 @@ export class VoiceButtonHandler {
       const embed = await Usages.executedAction(guildId, "Random Reject", Usages.formatUserTarget("rejected", [randomTarget.id]));
       await interaction.reply({
         ...embed,
-        flags: (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) as any,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         allowedMentions: { parse: [] }
       });
     }
@@ -674,47 +643,12 @@ export class VoiceButtonHandler {
     selectLabel: string,
     selectDesc: string
   ): Promise<void> {
-    try {
-      await (interaction as any).showModal({
-        title,
-        custom_id: customId,
-        components: [
-          {
-            type: 1,
-            components: [
-              {
-                type: 5,
-                custom_id: "target_user_select",
-                placeholder: `${selectLabel}...`,
-                min_values: 0,
-                max_values: 1
-              }
-            ]
-          },
-          {
-            type: 1,
-            components: [
-              {
-                type: 4,
-                custom_id: "target_user",
-                label: "Or Enter Username / @mention / ID",
-                style: 1,
-                placeholder: "@user | username | ID",
-                required: false
-              }
-            ]
-          }
-        ]
-      });
-    } catch (err: any) {
-      console.error("[Modal User Select Error]:", err?.rawError || err?.message || err);
-      const modal = new ModalBuilder()
-        .setCustomId(customId)
-        .setTitle(title)
-        .addComponents(
-          textInputRow("target_user", "Member (@user, username, or ID)", "@user")
-        );
-      await interaction.showModal(modal);
-    }
+    const modal = new ModalBuilder()
+      .setCustomId(customId)
+      .setTitle(title)
+      .addComponents(
+        textInputRow("target_user", "Member (@user, username, or ID)", "@user")
+      );
+    await interaction.showModal(modal);
   }
 }

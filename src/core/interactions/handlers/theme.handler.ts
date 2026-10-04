@@ -11,7 +11,8 @@ import {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
-  resolveColor
+  resolveColor,
+  GuildMember
 } from "discord.js";
 import { ThemeManager } from "../../config/theme";
 import { Usages } from "../../../shared/embeds/usages";
@@ -19,13 +20,15 @@ import { buildThemeSelectPayload, THEME_PRESETS } from "../../../modules/voice/c
 
 export class ThemeInteractionHandler {
   public static async handleButton(interaction: ButtonInteraction): Promise<void> {
-    const member = interaction.member as any;
-    const guildId = interaction.guildId!;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
 
-    if (!member?.permissions.has(PermissionFlagsBits.Administrator) && !member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator) && !member.permissions.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__You need Administrator or Manage Server permissions to change the theme :__**")),
-        flags: MessageFlags.Ephemeral as any
+        ...(await Usages.impossible(guildId, "You need Administrator or Manage Server permissions to change the theme")),
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -48,7 +51,7 @@ export class ThemeInteractionHandler {
       await interaction.update({
         ...refreshedPayload
       }).catch(async () => {
-        await interaction.reply({ ...embed, flags: MessageFlags.Ephemeral as any });
+        await interaction.reply({ ...embed, flags: MessageFlags.Ephemeral });
       });
       return;
     }
@@ -76,19 +79,22 @@ export class ThemeInteractionHandler {
   }
 
   public static async handleSelectMenu(interaction: StringSelectMenuInteraction): Promise<void> {
-    const member = interaction.member as any;
-    const guildId = interaction.guildId!;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
 
-    if (!member?.permissions.has(PermissionFlagsBits.Administrator) && !member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator) && !member.permissions.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__You need Administrator or Manage Server permissions to change the theme :__**")),
-        flags: MessageFlags.Ephemeral as any
+        ...(await Usages.impossible(guildId, "You need Administrator or Manage Server permissions to change the theme")),
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
     if (interaction.customId === "theme:select_color") {
       const selectedHex = interaction.values[0];
+      if (!selectedHex) return;
       const oldColor = (await ThemeManager.getColor(guildId)) || "#a6c9cb";
       const oldPreset = THEME_PRESETS.find((p) => p.hex.toLowerCase() === oldColor.toString().toLowerCase());
       const preset = THEME_PRESETS.find((p) => p.hex.toLowerCase() === selectedHex.toLowerCase());
@@ -97,9 +103,11 @@ export class ThemeInteractionHandler {
 
       await ThemeManager.setColor(guildId, selectedHex);
 
-      const accentColor = resolveColor(selectedHex as any);
-      const container = new ContainerBuilder()
-        .setAccentColor(accentColor)
+      const colorInt = ThemeManager.isValidHex(selectedHex) ? resolveColor(selectedHex.startsWith("#") ? selectedHex as `#${string}` : `#${selectedHex}` as `#${string}`) : null;
+      const container = new ContainerBuilder();
+      if (colorInt) container.setAccentColor(colorInt);
+
+      container
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(`# ${emojiOfColor} ⌇ __System Color Updated..!!__`)
         )
@@ -118,21 +126,23 @@ export class ThemeInteractionHandler {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await interaction.update({
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [container] as any
+        flags: MessageFlags.IsComponentsV2,
+        components: [container]
       }).catch(() => {});
       return;
     }
   }
 
   public static async handleModal(interaction: ModalSubmitInteraction): Promise<void> {
-    const member = interaction.member as any;
-    const guildId = interaction.guildId!;
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
 
-    if (!member?.permissions.has(PermissionFlagsBits.Administrator) && !member?.permissions.has(PermissionFlagsBits.ManageGuild)) {
+    if (!member.permissions.has(PermissionFlagsBits.Administrator) && !member.permissions.has(PermissionFlagsBits.ManageGuild)) {
       await interaction.reply({
-        ...(await Usages.impossible(guildId, "**__You need Administrator or Manage Server permissions to change the theme :__**")),
-        flags: MessageFlags.Ephemeral as any
+        ...(await Usages.impossible(guildId, "You need Administrator or Manage Server permissions to change the theme")),
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -142,8 +152,8 @@ export class ThemeInteractionHandler {
 
       if (!ThemeManager.isValidHex(rawHex)) {
         await interaction.reply({
-          ...(await Usages.impossible(guildId, "**__Invalid hex color format. Please enter a valid hex code (e.g. #00CCDF) :__**")),
-          flags: MessageFlags.Ephemeral as any
+          ...(await Usages.impossible(guildId, "Invalid hex color format. Please enter a valid hex code (e.g. #00CCDF)")),
+          flags: MessageFlags.Ephemeral
         });
         return;
       }
@@ -157,9 +167,9 @@ export class ThemeInteractionHandler {
 
       await ThemeManager.setColor(guildId, formatted);
 
-      const accentColor = resolveColor(formatted as any);
+      const colorInt = resolveColor(formatted as `#${string}`);
       const container = new ContainerBuilder()
-        .setAccentColor(accentColor)
+        .setAccentColor(colorInt)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(`# ${emojiOfColor} ⌇ __System Color Updated..!!__`)
         )
@@ -178,8 +188,8 @@ export class ThemeInteractionHandler {
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
       await interaction.reply({
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [container] as any
+        flags: MessageFlags.IsComponentsV2,
+        components: [container]
       }).catch(() => {});
       return;
     }

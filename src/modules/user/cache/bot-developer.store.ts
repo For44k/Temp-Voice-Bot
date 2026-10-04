@@ -1,5 +1,6 @@
 import { BotDeveloperModel } from "../../../database/schemas/bot-developer.schema";
 import { ENV } from "../../../core/config/env";
+import { FastLogger } from "../../../core/logger/logger";
 
 export class BotDeveloperStore {
   private static developers: Set<string> = new Set();
@@ -13,7 +14,9 @@ export class BotDeveloperStore {
         this.developers.add(item.userId);
       }
       this.loaded = true;
-    } catch {}
+    } catch (err: unknown) {
+      FastLogger.error("BotDeveloperStore.preload failed", err);
+    }
   }
 
   public static isDeveloper(userId: string): boolean {
@@ -27,16 +30,24 @@ export class BotDeveloperStore {
 
   public static async addDeveloper(userId: string, addedBy: string): Promise<void> {
     this.developers.add(userId);
-    await BotDeveloperModel.updateOne(
-      { userId },
-      { userId, addedBy, addedAt: new Date() },
-      { upsert: true }
-    ).exec();
+    try {
+      await BotDeveloperModel.updateOne(
+        { userId },
+        { userId, addedBy, addedAt: new Date() },
+        { upsert: true }
+      ).exec();
+    } catch (err: unknown) {
+      FastLogger.error("BotDeveloperStore.addDeveloper failed", { userId, addedBy, err });
+    }
   }
 
   public static async removeDeveloper(userId: string): Promise<void> {
     this.developers.delete(userId);
-    await BotDeveloperModel.deleteOne({ userId }).exec();
+    try {
+      await BotDeveloperModel.deleteOne({ userId }).exec();
+    } catch (err: unknown) {
+      FastLogger.error("BotDeveloperStore.removeDeveloper failed", { userId, err });
+    }
   }
 
   public static getDeveloperList(): string[] {

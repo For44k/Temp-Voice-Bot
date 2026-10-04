@@ -32,7 +32,7 @@ export class InteractionDispatcher {
       return;
     }
 
-    if (id.startsWith("setup_modal:") || id.startsWith("setup:")) {
+    if (id.startsWith("setup_") || id.startsWith("setup:")) {
       await SetupInteractionHandler.handleButton(interaction);
       return;
     }
@@ -53,7 +53,7 @@ export class InteractionDispatcher {
       return;
     }
 
-    if (id.startsWith("setup_submit:") || id.startsWith("setup:")) {
+    if (id.startsWith("setup_") || id.startsWith("setup:")) {
       await SetupInteractionHandler.handleModal(interaction);
       return;
     }
@@ -92,4 +92,3 @@ export class InteractionDispatcher {
     await interaction.deferUpdate().catch(() => {});
   }
 }
-

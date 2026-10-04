@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { Usages } from "../../../../shared/embeds/usages";
 import { extractTargetMembers } from "../../../../shared/utils/member-parser";
@@ -18,13 +18,13 @@ export const muteCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }
 
     const targets = await extractTargetMembers(message, args);
-    const validTargets = targets.filter((t) => VoiceLifecycleService.canManageTarget(channel.id, member.id, t.id));
+    const validTargets = targets.filter((t) => VoiceAuthService.canManageTarget(channel.id, member.id, t.id, message.guild));
 
     if (validTargets.length === 0) {
       await message.reply({

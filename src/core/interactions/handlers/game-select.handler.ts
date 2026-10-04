@@ -2,15 +2,15 @@ import {
   StringSelectMenuInteraction,
   GuildMember,
   VoiceChannel,
+  MessageFlags,
+  resolveColor,
   ContainerBuilder,
   SeparatorBuilder,
   TextDisplayBuilder,
-  MediaGalleryBuilder,
-  MediaGalleryItemBuilder,
-  MessageFlags,
-  resolveColor
+  SectionBuilder,
+  ThumbnailBuilder
 } from "discord.js";
-import { VoiceLifecycleService } from "../../../modules/voice/services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../../modules/voice/services/voice-auth.service";
 import { VoiceMemoryStore } from "../../../modules/voice/cache/voice.store";
 import { GuildMemoryStore } from "../../../modules/voice/cache/guild.store";
 import { Usages } from "../../../shared/embeds/usages";
@@ -19,16 +19,20 @@ import { ActionLogger } from "../../logger/action.logger";
 import { FastLogger } from "../../logger/logger";
 
 export class GameSelectHandler {
-
-  private static cooldowns: Map<string, number> = new Map();
+  private static readonly cooldowns = new Map<string, number>();
   private static readonly COOLDOWN_MS = 15 * 60 * 1000;
 
   public static async handle(interaction: StringSelectMenuInteraction): Promise<void> {
-    const member = interaction.member as GuildMember;
-    const guildId = interaction.guildId!;
-    const roleId = interaction.values[0];
+    const member = interaction.member;
+    if (!member || !(member instanceof GuildMember)) return;
 
-    let channel = member?.voice?.channel as VoiceChannel | null;
+    const guildId = interaction.guildId;
+    if (!guildId) return;
+
+    const roleId = interaction.values[0];
+    if (!roleId) return;
+
+    let channel = member.voice.channel as VoiceChannel | null;
     if (!channel && interaction.channel && interaction.channel.isVoiceBased()) {
       channel = interaction.channel as VoiceChannel;
     }
@@ -37,33 +41,40 @@ export class GameSelectHandler {
       const payload = await Usages.notInVoice(guildId);
       await interaction.reply({
         ...payload,
-        flags: (payload.flags | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
     const session = VoiceMemoryStore.get(channel.id);
     if (!session) {
-      const payload = await Usages.impossible(guildId, "**__This is not a managed temporary voice channel :__**");
+      const payload = await Usages.impossible(guildId, "This is not a managed temporary voice channel");
       await interaction.reply({
         ...payload,
-        flags: (payload.flags | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
-    if (!VoiceLifecycleService.isOwner(channel.id, member.id)) {
-      const payload = await Usages.impossible(guildId, "**__Only the channel owner can mention game roles :__**");
+    if (!VoiceAuthService.isOwner(channel.id, member.id)) {
+      const payload = await Usages.impossible(guildId, "Only the channel owner can mention game roles");
       await interaction.reply({
         ...payload,
-        flags: (payload.flags | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
 
     const now = Date.now();
-    const cooldownExpires = this.cooldowns.get(channel.id);
+    if (this.cooldowns.size > 200) {
+      for (const [key, expires] of this.cooldowns) {
+        if (now >= expires) {
+          this.cooldowns.delete(key);
+        }
+      }
+    }
 
+    const cooldownExpires = this.cooldowns.get(channel.id);
     if (cooldownExpires && now < cooldownExpires) {
       const remainingTotalSeconds = Math.ceil((cooldownExpires - now) / 1000);
       const minutes = Math.floor(remainingTotalSeconds / 60);
@@ -72,11 +83,11 @@ export class GameSelectHandler {
 
       const payload = await Usages.impossible(
         guildId,
-        `Wait until game mention cooldown finishes \`(${timeStr})\``
+        `Wait until the game mention cooldown finishes (${timeStr}).`
       );
       await interaction.reply({
         ...payload,
-        flags: (payload.flags | MessageFlags.Ephemeral) as any
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -104,72 +115,52 @@ export class GameSelectHandler {
     }
 
     const color = await ThemeManager.getColor(guildId);
-    
-    const titleText = {
-      type: 10, // TextDisplay
-      content: `# ${emojiPrefix}⌇ __Looking For Teammates..!!__`
-    };
+    const accentColor = color ? resolveColor(color) : null;
 
-    const separator = {
-      type: 14, // Separator
-      divider: true
-    };
+    const container = new ContainerBuilder();
+    if (accentColor) container.setAccentColor(accentColor);
 
-    const infoText = {
-      type: 10, // TextDisplay
-      content:
-        `> ⟢ <a:pink_Heartjump:1546859773721444382>・ **__Player :__** <@${member.id}>\n` +
-        `> ⟢ <a:pink_Heartjump:1546859773721444382>・ **__Game :__** <@&${roleId}> ${gameConfig?.name ? `(\`${gameConfig.name}\`)` : ""}\n` +
-        `> ⟢ <a:pink_Heartjump:1546859773721444382>・ **__Room :__** <#${channel.id}>`
-    };
+    container
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`# ${emojiPrefix}⌇ __Looking For Teammates..!!__`)
+      )
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true));
 
-    const callToActionText = {
-      type: 10, // TextDisplay
-      content: `> ✦ ・ **__Click to join the channel and play together!__**`
-    };
+    const infoContent =
+      `> ⟢ <a:pink_Heartjump:1546859773721444382>・ **__Player :__** <@${member.id}>\n` +
+      `> ⟢ <a:pink_Heartjump:1546859773721444382>・ **__Game :__** <@&${roleId}> ${gameConfig?.name ? `(\`${gameConfig.name}\`)` : ""}\n` +
+      `> ⟢ <a:pink_Heartjump:1546859773721444382>・ **__Room :__** <#${channel.id}>`;
 
-    let sectionOrInfo: any = infoText;
     if (gameImageUrl) {
-      sectionOrInfo = {
-        type: 9, // Section
-        components: [infoText],
-        accessory: {
-          type: 11, // Thumbnail
-          media: {
-            url: gameImageUrl
-          }
-        }
-      };
+      const section = new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoContent))
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(gameImageUrl));
+      container.addSectionComponents(section);
+    } else {
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(infoContent));
     }
 
-    const containerJson: any = {
-      type: 17, // Container
-      components: [
-        titleText,
-        separator,
-        sectionOrInfo,
-        separator,
-        callToActionText
-      ]
-    };
+    container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`> ✦ ・ **__Click to join the channel and play together!__**`)
+      );
 
-    if (color) {
-      containerJson.accent_color = resolveColor(color);
-    }
-
-    await interaction.deferUpdate().catch(() => { });
+    await interaction.deferUpdate().catch(() => {});
 
     try {
       await channel.permissionOverwrites.edit(roleId, {
         ViewChannel: true
-      }).catch(() => { });
+      }).catch((permError: unknown) => {
+        FastLogger.warn(`Failed to set ViewChannel on game mention: ${String(permError)}`);
+      });
 
       await channel.send({
         allowedMentions: { roles: [roleId] },
-        flags: MessageFlags.IsComponentsV2 as any,
-        components: [containerJson] as any
+        flags: MessageFlags.IsComponentsV2,
+        components: [container]
       });
-    } catch (err) {
+    } catch (err: unknown) {
       FastLogger.error("Failed to send game role mention message", err);
     }
 
@@ -181,6 +172,8 @@ export class GameSelectHandler {
       action: "Game Role Mentioned",
       channelName: channel.name,
       details: `Role: \`@${roleName}\` (${roleId})`
-    }).catch(() => { });
+    }).catch((logError: unknown) => {
+      FastLogger.warn(`Failed to log game role mention: ${String(logError)}`);
+    });
   }
 }

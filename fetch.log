@@ -1,9 +1,0 @@
-[eval]:7
-  const emojis = await g.emojis.fetch();
-                                ^
-
-TypeError: Cannot read properties of undefined (reading 'fetch')
-    at [eval]:7:33
-    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
-
-Node.js v24.20.0

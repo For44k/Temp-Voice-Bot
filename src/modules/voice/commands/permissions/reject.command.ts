@@ -1,6 +1,6 @@
 import { Message, GuildMember, VoiceChannel } from "discord.js";
 import { ICommand } from "../../../../shared/types/command.types";
-import { VoiceLifecycleService } from "../../services/voice-lifecycle.service";
+import { VoiceAuthService } from "../../services/voice-auth.service";
 import { VoicePermissionsManager } from "../../services/voice-permission.service";
 import { VoiceMemoryStore } from "../../cache/voice.store";
 import { Usages } from "../../../../shared/embeds/usages";
@@ -19,7 +19,7 @@ export const rejectCommand: ICommand = {
       return;
     }
 
-    if (!VoiceLifecycleService.isManager(channel.id, member.id)) {
+    if (!VoiceAuthService.isManager(channel.id, member.id)) {
       await message.reply({ ...(await Usages.notManagerOrOwner(guildId)), allowedMentions: { parse: [] } });
       return;
     }
@@ -35,7 +35,7 @@ export const rejectCommand: ICommand = {
     }
 
     const targetMembers = extractedMembers.filter((target) =>
-      VoiceLifecycleService.canManageTarget(channel.id, member.id, target.id)
+      VoiceAuthService.canManageTarget(channel.id, member.id, target.id, message.guild)
     );
 
     if (targetMembers.length === 0 && targetRoles.length === 0) {
